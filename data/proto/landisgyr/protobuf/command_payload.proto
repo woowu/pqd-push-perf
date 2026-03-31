@@ -1,0 +1,28 @@
+// Proto
+//
+// Copyright 2024 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "CommandPayloadProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/wrappers.proto";
+import "landisgyr/protobuf/timestamp.proto";
+
+
+// Command Payload
+message CommandPayload {
+    repeated Command commands = 1; // List of commands.
+    google.protobuf.UInt32Value msg_id = 2;  // This value is not expected to be populated by the HES.  It will be populated by Databot from the databot_msg msg_id field.
+    landisgyr.protobuf.Timestamp reception_time = 3; // This value is not expected to be populated by the HES.  It will be populated by Databot when it gets the message.
+}
+
+// Command
+message Command {
+    google.protobuf.BytesValue command_bytes = 1; // This is a freeform bytes field for the application/third party HES to use as needed.
+}

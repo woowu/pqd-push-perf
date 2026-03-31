@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "TimestampProto";
+
+// Timestamp
+message Timestamp {
+  // Milliseconds since midnight on January 1, 1970
+  uint64 milliseconds = 1;
+}

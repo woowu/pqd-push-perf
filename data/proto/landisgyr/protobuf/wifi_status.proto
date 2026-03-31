@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package landisgyr.protobuf;
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "WifiStatusProto";
+
+
+enum WifiProvisionState{
+  UNK = 0;
+  PROVISIONED = 1;
+  UNPROVISIONED = 2;
+}
+enum WifiState{
+  UNKOWN = 0;
+  IDLE = 1;
+  CONFIGURATION = 2;
+  ASSOCIATED = 3;
+}
+
+// WIFI Station Mode Status
+message WifiStationModeStatus {
+  // Is wifi provisioned or not.
+  landisgyr.protobuf.WifiProvisionState is_provisioned = 1;
+  // State of currently provisioned WIFI
+   landisgyr.protobuf.WifiState is_associated = 2;
+  // Wi-Fi Station Mode interface MAC address
+   bytes mac_address = 3;
+  // Connected SSID
+   bytes ssid = 4;
+  // Current freq
+   int32 freq = 5;
+  // Current RSSI ( Units of dBm)
+   sint32 rssi = 6;
+  // Wi-Fi Station Mode interface IP address
+   bytes interface_ip = 7;
+  // Wifi Station Security
+    bytes security = 8;
+
+}

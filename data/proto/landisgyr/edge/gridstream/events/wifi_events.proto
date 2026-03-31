@@ -1,0 +1,149 @@
+syntax  = "proto3";
+
+package landisgyr.edge.gridstream.events;
+option csharp_namespace = "LG.Edge.Gridstream.Events";
+option java_package = "com.landisgyr.edge.gridstream.events";
+option java_outer_classname = "LgWifiEventsProto";
+option objc_class_prefix = "LGGS";
+
+/**
+ * Sources to enable/disable the WiFi in AP/STA mode.
+ */
+enum WifiSources{
+  BY_DEFAULT = 0;
+  CC_COMMAND = 1;
+  TIMER_EXPIRED = 2;
+  REBOOT_CANCELLATION = 3;
+}
+
+enum WifiConnectionErrors{
+  SSID_NOT_FOUND = 0;
+  SSID_TOO_LONG = 1;
+  SSID_TOO_SHORT = 2;
+  SSID_MALFORMED = 3;
+  INCORRECT_PASSWORD = 4;
+  PASSWORD_TOO_LONG = 5;
+  PASSWORD_TOO_SHORT = 6;
+  PASSWORD_MALFORMED = 7;
+  PASSWORD_MAX_ATTEMPTS = 8;
+  HTTP_SSID_MISSING = 9;
+  HTTP_PASS_MISSING = 10;
+  HTTP_HIDDEN_MISSING = 11;
+  CONNMAN_INTERNAL_ERROR = 12;
+  CONFIG_DISABLED = 13;
+  DBUS_CONNECTION_FAILURE = 14;
+  UNKOWN_ERR = 254;
+}
+
+message Ssid{
+  //Optional, if omitted default is false & UTF-8 encoding is assumed
+  bool not_utf8 =1;
+  //0-32 bytes, either raw or encoded as UTF-8, terminating null not required, unspecified trailing bytes treated as null.
+  bytes ssid =2;
+}
+
+message ApModeEnabled{
+  landisgyr.edge.gridstream.events.Ssid ssid =1;
+  // CC, optical port, button, always on config.
+  landisgyr.edge.gridstream.events.WifiSources source  =2;
+}
+
+message ApModeDisabled{
+  //Configured timeout period. Units of Seconds.
+  uint32 time_out =1;
+  // timer expired, CC command or reboot
+  landisgyr.edge.gridstream.events.WifiSources reason =2;
+}
+
+/**
+ * Edge device connected to a Wi-Fi AP and connection is fully functional or
+ * external device running in station mode has connected to edge device running in AP mode.
+ */
+message WiFiConnected{
+  //Optional, Wi-Fi MAC address of external device that connected to edge device.
+  bytes mac =1;
+  //Optional. True if event relates to edge device AP mode interface.
+  bool ap_mode =2;
+  //Optional.  Current RSSI ( Units of dBm) required for Station mode only.
+  sint32 rssi =3;
+}
+
+/**
+ * For station mode Edge device has disconnected from Wi-Fi AP or its been disabled via configuration.
+ * For AP mode an external device running in station mode has disconnected from edge device.
+ */
+message WiFiDisconnected{
+  //reason for disconnection.
+  landisgyr.edge.gridstream.events.WifiConnectionErrors reason =1;
+  //Optional. True if event relates to edge device AP mode interface.
+  bool ap_mode =2;
+  //Optional, Wi-Fi MAC address of external device that connected to edge device.
+  bytes mac =3;
+  //Optional.  Last captured RSSI ( Units of dBm) required for Station mode only.
+  sint32 rssi =4;
+
+}
+
+/**
+ * Send this event when wifi signal is lower than the given
+ * threshold value.
+ */
+message SignalLow{
+  //configured rssi level for when to trigger this event. Units of dBm e.g. -71dBm is a value of -71.
+  sint32 threshold =1;
+  //weakest rssi detected during the triggering of this event. Units of dBm.
+  sint32 rssi =2;
+}
+
+/**
+ * Send this event when wifi signal is higher than the given
+ * threshold value.
+ */
+message SignalHigh{
+  //configured rssi level for when to trigger this event. Units of dBm e.g. -71dBm is a value of -71.
+  sint32 threshold =1;
+  //strongest rssi detected during the triggering of this event. Units of dBm.
+  sint32 rssi =2;
+}
+
+/**
+ * Send this event when WiFi SSID doesn't meet requirements.
+ * SSID of length 0 or greater than 32 characters is not
+ * acceptable.
+ */
+message SsidError{
+  //Failure reason
+  landisgyr.edge.gridstream.events.WifiConnectionErrors reason =1;
+  //Optional. True if event relates to edge device AP mode interface.
+  bool ap_mode =2;
+  //SSID causing the issue
+  landisgyr.edge.gridstream.events.Ssid ssid =3;
+}
+
+/**
+ * Send this event when WiFi password doesn't meet requirements.
+ * Password of length less than 8 characters or greater than 63
+ * characters is not acceptable.
+ */
+message PasswordError{
+  //Failure reason
+  landisgyr.edge.gridstream.events.WifiConnectionErrors reason =1;
+  //Optional. True if event relates to edge device AP mode interface.
+  bool ap_mode =2;
+}
+
+
+/**
+ * Log this event when a WiFi error occurs and no other specific error
+ * event has been recorded.
+ */
+message GeneralError{
+  //Failure reason
+  landisgyr.edge.gridstream.events.WifiConnectionErrors reason =1;
+  //Optional. True if event relates to edge device AP mode interface.
+  bool ap_mode =2;
+  //Optional.
+  // Current following being used as RSSI ( Units of dBm) required
+  // for Station mode only.
+  sint32 value =3;
+}

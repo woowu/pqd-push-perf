@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package landisgyr.databot;
+
+import "landisgyr/protobuf/timestamp.proto";
+
+option csharp_namespace = "LG.DataBot";
+option java_package = "com.landisgyr.databot";
+option java_outer_classname = "WeatherProto";
+
+message WeatherData {
+  // this can be zipcode, postal_code, "city", region code,
+  string geo_code = 1;
+  // these timestamps create a bounded data valid window
+  landisgyr.protobuf.Timestamp timestamp_day_start = 2;
+  landisgyr.protobuf.Timestamp timestamp_day_end  = 3;
+  int32 mintemp = 4;
+  int32 maxtemp = 5;
+  int32 avgtemp = 6;
+  uint32 humidity = 7;
+  uint32 cloud_cover = 8;
+  uint32 wind_speed = 9;
+  uint32 wind_degree = 10;
+
+  // this timestamp is used to stagger requests from endpoints
+  //     e.g. use a randomized +/- timestamp window
+  landisgyr.protobuf.Timestamp timestamp_data_next_available = 11;
+
+}
+
+message DataDrop_Weather {
+  repeated WeatherData weather_data = 1;
+}

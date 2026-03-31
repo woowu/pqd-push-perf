@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package landisgyr.appFile;
+option csharp_namespace = "LG.AppOSCodec.AppFile";
+option java_package = "com.landisgyr.appfile";
+option java_outer_classname = "AppBundleProto";
+option optimize_for = LITE_RUNTIME;
+
+import "landisgyr/appFile/AppDescription.proto";
+
+enum ParseResult {
+    E_SUCCESS = 0;
+    E_ACCESS = 1;
+    E_FORMAT = 2;
+    E_SIGNATURE = 3;
+    E_MEMORY = 4;
+}
+
+message File {
+    string name = 1;
+    bytes data = 2;
+}
+
+enum DetailResult {
+    DETAIL_NOT_CHECKED = 0;
+    DETAIL_SUCCESS = 1;
+    DETAIL_FAILED = 2;
+}
+
+message ParseDetails {
+    DetailResult tarFile = 1;
+    DetailResult appDescription = 2;
+    DetailResult appBinary = 3;
+    DetailResult utilityData = 4;
+    DetailResult landisExpiration = 5;
+    DetailResult landisSignature = 6;
+    DetailResult utilityExpiration = 7;
+    DetailResult utilitySignature = 8;
+    repeated string parseError = 9;
+}
+
+message AppBundle {
+    AppData appDescription = 1;
+    repeated File appBinary = 2;
+    repeated File utilityData = 3;
+    ParseDetails details = 4;
+}

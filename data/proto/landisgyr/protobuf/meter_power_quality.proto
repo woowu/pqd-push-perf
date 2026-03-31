@@ -1,0 +1,111 @@
+/**
+ * File version:  1.0.0
+ */
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "MeterPowerQualityProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/timestamp.proto";
+
+// Top-level message containing header information and a list of measurements
+message PowerQualityData {
+    // Sequence number
+    // Helps backend detect missing or duplicate messages
+    uint32 seq_num = 1;
+
+    // Timestamp when these measurements were taken
+    google.protobuf.Timestamp timestamp = 2;
+
+    // Example: "S1300", "S3300", ...
+    string meter_type = 3;
+
+    // Meter Serial Number
+    string meter_serial_number = 4;
+
+    // All measurement values for this payload
+    repeated MetricValue metrics = 5;
+}
+
+message MetricValue {
+    /* The unique OBIS code of the metric represented in ASCII. Read the end of
+     * the doc for explanation of the OBIS identification and a list OBIS codes
+     * currently used in this application.
+     */
+    string id = 1;
+
+    /* Metric value identified by the 'id' represented in SI Units.
+     */
+    double value = 2;
+}
+
+/**
+ *  Short introduction to OBIS Identification
+ *  -------------------------------------------
+ *  
+ *  For all the detail information, please refer to IEC 62056-21 (Object
+ *  identification system).
+
+ *  OBIS code is an ASCII string uniquely identify data items used in energy
+ *  metering systems. It has up to six value groups, A to F, and written in the
+ *  following form:
+ *       A-B:C.D.E*F
+ *  
+ *   1. The maximum range of each field: 0-255 (note, represented as ASCII string.
+ *   2. Field C and D are mandatory, A, B, E and F are optional and can be absent
+ *      when it is not relevant to the application. For example, the complete
+ *      OBIS code for Active Import Power (+P) is "1-0:1.7.0*255", and its reduced
+ *      form is "1.7". In this application, we will use reduced form.
+ *   3. Meaning of the fields are the followings:
+ *      - A: The media, e.g., 1 is electricity.
+ *      - B: Channel number, i.e., the number of input of a meter having several
+ *           inputs for measurement of energy.
+ *      - C: The variable of the quantity, e.g., 31 is current, 32 is voltage, 1
+ *           is active import power, 2 is reactive import power.
+ *      - D: The type of the quantity, e.g., 7 is instantaneous value, 8 is
+ *           energy.
+ *      - E: Used to further classification, e.g., for phase angles and for
+ *           tariffs.
+ *      - F: Time range, e.g., billing periods.
+ *
+ *
+ *  List of used OBIS codes
+ *  ------------------------
+ *
+ *  Below is a complete list of OBIS codes used in this application.
+ *
+ *
+ *    Metric                OBIS
+ *  +---------------------------------+
+ *    CURRENT_L1            31.7
+ *    VOLTAGE_L1            32.7
+ *    CURRENT_L2            51.7
+ *    VOLTAGE_L2            52.7
+ *    CURRENT_L3            71.7
+ *    VOLTAGE_L3            72.7
+ *    ANGLE_UL1_IL1         81.7.40
+ *    ANGLE_UL2_IL2         81.7.51
+ *    ANGLE_UL3_IL3         81.7.62
+ *    POWER_FACTOR          13.7
+ *    ACTIVE_POWER_IMPORT   1.7
+ *    ACTIVE_POWER_EXPORT   2.7
+ *    ACTIVE_ENERGY_IMPORT  1.8
+ *    ACTIVE_ENERGY_EXPORT  2.8
+ * 
+ *
+ *  Algorithm for meter firmware to convert a complete OBIS code to its reduced
+ *  form
+ *  ---------------------------------------------------------------------------
+ *
+ *   STEP 1:  Strip off A and B.
+ *   STEP 2:  If F is neither 0 nor 255, output C.D.E*F.  Goto END.
+ *   STEP 3:  If E is 0, output C.D                       Goto END.
+ *   STEP 4:  Output C.D.E                                Godo END.
+ *   END
+ */
+

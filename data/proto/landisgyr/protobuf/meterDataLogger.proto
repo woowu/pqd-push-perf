@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "meterDataLogger";
+
+import "landisgyr/protobuf/timestamp.proto";
+
+//
+// Meter Data Logger Log File Header
+//
+message meterDataFileHeader{
+  string fileFormat = 1;
+  string protoFormat = 2;
+  string version = 3;
+  Timestamp timestamp = 4;
+  Timestamp timestamp_event = 5;
+}
+
+
+//
+// meter data sample (waveform, periodic, table)
+//
+message MeterData{
+  // waveform data
+  bytes waveform = 1;
+
+  // periodic -- 100ms data
+  bytes periodic_100ms = 2;
+
+  // meter table
+  uint32 element = 3;
+  bytes meterTable = 4;
+
+  //  meterID (or source)
+  string meterID = 5;
+}
+
+
+//
+// Meter Data Logger -- command/control
+//
+message MeterDataLogger_Cmd{
+  // the type of data
+  enum MDL_CMD{
+    MDL_CMD_UNKNOWN = 0;
+    MDL_CMD_RECORD = 1;
+    MDL_CMD_PLAY = 2;
+    MDL_CMD_STOP = 3;
+    MDL_CMD_ACK = 4;  
+  }
+  
+  MDL_CMD cmd = 1;
+  string file_name = 2;
+  uint32 seconds = 3;
+  bool loop_flag = 4;
+  uint32 message_id = 5;
+  string message_uuid = 6;
+}

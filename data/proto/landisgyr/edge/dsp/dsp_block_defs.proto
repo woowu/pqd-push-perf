@@ -1,0 +1,383 @@
+syntax  = "proto3";
+
+//Definition of DSP engine block config and status for each type of block,
+//common to local EIC & HES.
+//Version 2024-04-22
+
+package landisgyr.edge.dsp;
+option csharp_namespace = "LG.Edge.Dsp";
+option java_package = "com.landisgyr.edge.dsp";
+option java_outer_classname = "DspBlockDefsProto";
+option objc_class_prefix = "LGGS";
+
+/**
+ * Used when performing DSP Engine config NV read/write and for update command.
+ * Var/Val stores part of this message for N blocks
+ */
+message FullBlockConfig{
+  //Range: 0-127 (no more than 1 byte). Optional, group not specified by HES,
+  //app gets this # from prior AllocateRsp
+  int32 group =1;
+  //Range: 0-16383 (no more than 2 bytes)
+  int32 id =2;
+  //detailed internal config of block
+  landisgyr.edge.dsp.InnerBlockConfig config =3;
+  //list of block/channel pairs taken as inputs to this blocks channels 1->N.
+  repeated landisgyr.edge.dsp.BlockSource inputs =4;
+}
+
+/**
+ * Definition of DSP block source input.
+ */
+message BlockSource{
+  //Range: 0-16383 (no more than 2 bytes)
+  int32 id =1;
+  //Range: 0-127/16383 (no more than 1 byte, except when addressing output of
+  //parser block)
+  int32 channel =2;
+}
+
+/**
+ * Command sent to the DSP Engine to add or update a block within the matrix.
+ */
+message InnerBlockConfig{
+  oneof kind{
+    landisgyr.edge.dsp.BlockCfgStreamParser parser =1;
+    landisgyr.edge.dsp.BlockCfgRefWindow ref =2;
+    landisgyr.edge.dsp.BlockCfgDescriptor descriptor_gen =3;
+    landisgyr.edge.dsp.BlockCfgSrcImpedance impedance =4;
+    landisgyr.edge.dsp.BlockCfgLink link =5;
+    landisgyr.edge.dsp.BlockCfgAverage average =6;
+    landisgyr.edge.dsp.BlockCfgMinMax minmax =7;
+    landisgyr.edge.dsp.BlockCfgNormalise norm =8;
+    landisgyr.edge.dsp.BlockCfgScale scale =9;
+    landisgyr.edge.dsp.BlockCfgBuffer buff =10;
+    landisgyr.edge.dsp.BlockCfgThreshold threshold =11;
+    landisgyr.edge.dsp.BlockCfgResample resample =12;
+    landisgyr.edge.dsp.BlockCfgCounter counter =13;
+    landisgyr.edge.dsp.BlockCfgDelay delay =14;
+    landisgyr.edge.dsp.BlockCfgPulse pulse =15;
+    landisgyr.edge.dsp.BlockCfgMathBox math =16;
+    landisgyr.edge.dsp.BlockCfgHistogram histogram =17;
+    landisgyr.edge.dsp.BlockCfgRingDetect ring =18;
+    landisgyr.edge.dsp.BlockCfgFilter filter =19;
+    landisgyr.edge.dsp.BlockCfgMerge merge =20;
+  }
+}
+
+/**
+ * DSP block config for input data stream parser.
+ */
+message BlockCfgStreamParser{
+  enum ParserType{
+    METER_STREAM =0; //default, i.e. normal meter streaming data
+    INJECTION_CMD =1; //Use InjectSampleReq as a source of data
+  }
+  //Choice of input data stream, In future options maybe metrology stream type,
+  //radio events, wifi events of PF event etc.
+  ParserType type =1;
+}
+
+/**
+ * DSP block config: reference window, used for sample timing relative to RTC.
+ */
+message BlockCfgRefWindow{
+  int32 duration =1; //units of seconds, max of 1 week. Min of zero.
+  //units of seconds relative to midnight Sun/Mon, max of 1 week. Min of zero.
+  int32 offset =2;
+  //units of seconds must not be less than duration, max 1 week. Min of zero.
+  int32 period =3;
+}
+
+/**
+ * DSP block config for descriptor output capture.
+ */
+message BlockCfgDescriptor{
+  bool do_nv_backup =1; //if true data is backup up to nv on power loss.
+  int32 max_q_size =2; //max number of records in queue for this descriptor
+  bool single_shot =3; //if true once queue full recoding stops until q read
+  bool raise_event =4; //if true event will be raised for each new descriptor
+}
+
+/**
+ * DSP block config for source impedance calculator.
+ */
+message BlockCfgSrcImpedance{
+  //load current delta trigger threshold for impedance calc. units of milliamps
+  int32 current_delta_thresh_ma =1;
+  //load impedance delta trigger threshold for impedance calc. units of 0.1%.
+  int32 load_delta_thresh =2;
+  //number of impedance determinations required for averaging the output
+  int32 sample_size =3;
+}
+
+/**
+ * DSP block config for simple direct link (short).
+ */
+message BlockCfgLink{
+  //no config.
+}
+
+/**
+ * DSP block config for averaging.
+ */
+message BlockCfgAverage{
+  //number of samples used to compute the average
+  int32 sample_count =1;
+  //number of samples to ignore commencing at the start of window
+  int32 sample_offset =2;
+  //if true average is computed using sliding window
+  bool sliding_window =3;
+  //if true gating channel input is used to exclude some samples
+  bool use_gating =4;
+  //if true end of window channel input is used
+  bool use_window_end =5;
+}
+
+/**
+ * DSP block config for computing N max or min values.
+ */
+message BlockCfgMinMax{
+  //if true maximum values are computed
+  bool is_max =1;
+  //number of peaks to compute, if zero then live value is computed
+  //i.e. hysteresis not used
+  int32 peak_count =2;
+  //determines when a peak event has ended, if the value retreats at least the
+  //specified amount then peak event is declared over and array of prior peaks
+  //is updated.
+  int32 hysteresis =3;
+}
+
+/**
+ * DSP block config for value normalisation between zero and 1.
+ */
+message BlockCfgNormalise{
+  //no config.
+}
+
+/**
+ * DSP block config for scaling a value.
+ */
+message BlockCfgScale{
+  sint32 numerator =1;
+  int32 denominator =2;
+}
+
+/**
+ * DSP block config for a buffer / shift-register.
+ */
+message BlockCfgBuffer{
+  int32 num_samples =1;
+  bool output_all =2; //output multiple channels, one for each unit delay.
+}
+
+/**
+ * DSP block config for comparing input to a threshold.
+ */
+message BlockCfgThreshold{
+  enum DspCompareType {
+    UNKNOWN =0;
+    GREATER_THAN =1;
+    GREATER_THAN_OR_EQUAL =2;
+    LESS_THAN =3;
+    LESS_THAN_OR_EQUAL =4;
+    EQUAL =5;
+    NOT_EQUAL =6;
+  }
+  DspCompareType type =1;
+  //Input value compared to this limit.
+  int32 limit =2;
+  //if true threshold is a dynamic value on 2nd channel & limit field ignored.
+  bool dynamic =3;
+}
+
+/**
+ * DSP block config for resampling data at a different rate.
+ */
+message BlockCfgResample{
+  //number of samples. output_rate = input_rate * numerator/denominator.
+  //Max output rate is sys base rate.
+  int32 numerator =1; 
+  //Number of samples. output_rate = input_rate * numerator/denominator.
+  //Max output rate is sys base rate.
+  int32 denominator =2;
+  //if true channel input is used to determine numerator
+  bool dynamic_numerator =3;
+  //if true channel input is used to determine denominator
+  bool dynamic_denominator =4;
+}
+
+/**
+ * DSP block config for event counter.
+ */
+message BlockCfgCounter{
+  enum DspCountType {
+    UNKNOWN =0;
+    ZERO =1;
+    NON_ZERO =2;
+    EDGE_POSITIVE =3;
+    EDGE_NEGATIVE =4;
+    EDGE_ANY =5;
+    EDGE_NONE =6;
+  }
+  DspCountType type =1;
+}
+
+/**
+ * DSP block config for delay calculator / high order FIR filter.
+ */
+message BlockCfgDelay{
+  //number of samples output shall be delayed
+  int32 sample_delay_offset =1;
+  //optional, default=null, array of coefficients first coefficient is for
+  //sample delayed by sample_delay_offset samples
+  repeated sint32 coefficients =2;
+  //common divisor
+  int32 divisor =3; //optional, default=1
+}
+
+/**
+ * DSP block config for pulse/edge detector like on an oscilloscope.
+ */
+message BlockCfgPulse{
+  enum DspTriggerType {
+    UNKNOWN_TRIGGER =0;
+    EDGE_POSITIVE =1;
+    EDGE_NEGATIVE =2;
+    PULSE_POSITIVE =3;
+    PULSE_NEGATIVE =4;
+    PULSE_ANY =5;
+    STEADY =6;
+  }
+  //edge, pulse, or steady state.
+  DspTriggerType type =1;
+  //edge trigger value.
+  int32 threshold =2;
+  //if true boolean output is negated.
+  bool negate_output =3;
+  //if true event is detected output is latched until reset by delay, signal
+  //or external cmd. Else output is pulsed for 1 sample.
+  bool output_latch =4;
+  //if true reset input channel is observed.
+  bool use_reset_input =5;
+  //# of historical trigger events stored in output buffer. Range of 0-10.
+  int32 event_count =6;
+  //minimum pulse width, or for non-pulse trigger type, timeout period.
+  //units of samples.
+  int32 period_min =7;
+  //maximum pulse width for pulse trigger types.
+  int32 period_max =8;
+  //After event declared this is the delay before output is updated (live state
+  //& buffer). units of samples.
+  int32 output_delay =9;
+  //Period of time to wait before monitoring for next trigger event can
+  //commence. units of samples.
+  int32 reset_delay =10;
+  //if true trigger is fired once at most and requires external reset.
+  bool single_shot =11;
+  enum DspSortType {
+    UNKNOWN_SORT =0;
+    CHRONOLOGICAL =1;
+    SIG_MAGNITUDE =2;
+    SIG_DELTA_MAGNITUDE =3;
+    PULSE_WIDTH_ASCENDING =4;
+    PULSE_WIDTH_DESCENDING =5;
+  }
+  //history buffer sorted according to pulse magnitude, duration, or
+  //chronologically.
+  DspSortType sort_type =12;
+}
+
+/**
+ * DSP block config for generic mathematical operation.
+ */
+message BlockCfgMathBox{
+  enum DspMathType {
+    UNKNOWN =0;
+    ADD =1; //out = ch0+ch1+ch2
+    SUBTRACT =2; //out = ch0-ch1-ch2
+    MULTIPLY =3; //out = ch0*ch1*ch2
+    DIVIDE =4; //out = ch0/ch1
+    OR =5; //out = ch0 OR ch1 OR ch2
+    NOR =6; //out = NOT (ch0 OR ch1 OR ch2)
+    AND =7; //out = ch0 AND ch1 AND ch2
+    NAND =8; //out = NOT (ch0 AND ch1 AND ch2)
+    XOR =9; //out = ch0 XOR ch1
+    XNOR =10; //out = NOT (ch0 XOR ch1)
+    NEGATE =11; //out = ch0 * (-1)
+    INVERSE =12; //out = 1 / ch0
+    SUM_SQUARES =13; //out = ch0*ch0 + ch1*ch1 + ch2*ch2
+    SQRT_SUM =14; //out = sqrt( ch0 + ch1 + ch2)
+    LOG =15; //out = log(ch0)
+    POWER =16; //out = ch0^ch1
+    MUX =17; //multiplex input, depending on ch0 value out= ch1(0)->ch8(7).
+  }
+  //type of mathematical operation
+  DspMathType type =1;
+  //optional, default of 2. Number of inputs, each operation type has unique
+  //validity range
+  int32 num_input_channels =2;
+  //optional, default=1, scaling of final output.
+  sint32 numerator =3;
+  //optional, default=1, scaling of final output.
+  int32 denominator =4;
+}
+
+/**
+ * DSP block config for histogram.
+ */
+message BlockCfgHistogram{
+  int32 bin_size =1; //size of each bin
+  int32 bin_count =2; //number of bins
+  int32 bin_offset =3; //value offset for smallest value of 1st bin
+  bool dynamic_bin_size =4; //true if bin size & offset set by ch1 & 2
+}
+
+/**
+ * DSP block config for ring detection.
+ */
+message BlockCfgRingDetect{
+  //minimum peak-to-peak magnitude required to trigger start of ringing
+  int32 start_peak_to_peak_mag =1;
+  //minimum count of peaks required to trigger start of ringing
+  int32 start_peak_to_peak_count =2;
+  //determines when a peak has ended, if the value retreats at least the
+  //specified amount then peak is declared, start/end trigger is then tested.
+  int32 hysteresis =3;
+  //peak-to-peak magnitude threshold required to trigger end of ringing
+  int32 end_peak_to_peak_mag =4;
+  //number of ringing 1/2 cycles required to trigger end of ringing
+  int32 end_half_cycle_count =5;
+}
+
+/**
+ * DSP block config for generic filter.
+ */
+message BlockCfgFilter{
+    enum DspFilterType {
+    UNKNOWN =0;
+    FIR =1; //Finite impulse response
+    IIR =2; //infinite impulse response
+    MEDIAN =3; //median filter (remove noise)
+  }
+  DspFilterType type =1; //filter type
+  int32 window_size =2;//for median filter, size of window
+  repeated sint32 alpha_coefficients =3; //coefficients for IIR
+  repeated sint32 beta_coefficients =4; //coefficients for FIR & IIR
+  int32 alpha_divisor =5; //coefficients shall be divided by this number
+  int32 beta_divisor =6;  //coefficients shall be divided by this number
+}
+
+/**
+ * DSP block config for merging multiple channels to one.
+ */
+message BlockCfgMerge{
+  message Chunk {
+    int32 bit_offset =1; //bit offset in resulting output
+    int32 size =2; //size in bits for this chunk in resulting output
+    sint32 value_offset=3; //offset to apply to input value.
+    bool block_rollover =4; //block under/overflow & instead report min/max.
+  }
+  repeated Chunk chunks=1;
+}

@@ -1,0 +1,32 @@
+// Proto
+//
+// Copyright 2023-2025 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.databot;
+
+option csharp_namespace = "LG.DataBot";
+option java_package = "com.landisgyr.databot";
+option java_outer_classname = "ConfigCapabilitiesProto";
+option optimize_for = LITE_RUNTIME;
+
+// Destination field structure
+message Destination {
+	string uri = 1;  // For example: coap://[2005::1]:11199/dataBot, coap://10.1.2.3:11199/dataBot or coap://databot:11199/dataBot
+}
+
+// Configuration capabilities
+message ConfigCapabilities {
+	// Implementation examples:
+	// 1. Define fields for each capability:
+	//    bool config_hash_supported = 1;
+	// 2. Define flags field with bitfield enumeration.
+	//    enum Flags {
+	//      // Is 0 indicating bit postion or 1 indicating bit mask preferred?
+	//      CONFIG_HASH_SUPPORTED = 0;
+	//    }
+	//    uint32 flags = 1;
+	Destination destination = 1;      // Primary databot message destination if databot host is different than app manager host.
+	Destination destination_alt = 2;  // Alternate databot message destination.
+}

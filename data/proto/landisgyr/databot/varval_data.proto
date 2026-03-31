@@ -1,0 +1,76 @@
+// Proto
+//
+// Copyright 2023 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.databot;
+
+option csharp_namespace = "LG.DataBot";
+option java_package = "com.landisgyr.databot";
+option java_outer_classname = "VarValDataProto";
+option optimize_for = LITE_RUNTIME;
+
+// VarVals definitions
+message VarVals {
+    // VarVal map entry
+    map<string, Val> entries = 1;
+}
+
+// Varval Section
+message Section {
+    // Section for this set of VarVals
+    string section = 1;
+    // VarVals in this section
+    VarVals varvals = 2;
+}
+
+// Varval Table
+message Table {
+    // Table for this set of VarVals/Sections
+    string table = 1;
+    // Sections in this table
+    repeated Section sections = 2;
+}
+
+// Varval Data to read/write
+message VarValData {
+    // Set of tables for this varval read/write
+    repeated Table tables = 1;
+}
+
+message Val {
+    // The kind of value.
+    // Represents a structured value.
+    reserved 5; // Reserved for nested varval in the future... Not currently supported.
+    reserved 6; // Reserved for ListVal... Not currently supported.
+    oneof kind {
+        // Represents a null value.
+        NullVal null_value = 1;
+        // Represents a double value.
+        double number_value = 2;
+        // Represents a string value.
+        string string_value = 3;
+        // Represents a boolean value.
+        bool bool_value = 4;
+        // Represents a Uint64 value.
+        uint64 uint64_value = 7;
+        // Represents a bytes value.
+        bytes bytes_value = 8;
+        // Represents a signed 64 bit value.
+        int64 int64_value = 9;
+    }
+}
+
+// Null value.
+enum NullVal {
+    // Null value.
+    NULL_VAL = 0;
+}
+
+
+// List Value
+message ListVal {
+    // Repeated field of dynamically typed values.
+    repeated Val values = 1;
+}

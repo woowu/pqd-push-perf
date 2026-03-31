@@ -1,0 +1,262 @@
+syntax = "proto3";
+
+//Definition of Edge (EIC-Revelo etc.) Gridstream events typically pushed over mesh to CC. Includes
+//  Individual event structures
+//  Edge->CC Push notification header
+//  CC->Edge event request
+//  CC->Edge set event configuration
+//  CC->Edge get event configuration
+//  Edge->CC event configuration response
+
+//Version 2022-05-18
+
+package landisgyr.edge.gridstream.events;
+option csharp_namespace = "LG.Edge.Gridstream.Events";
+option java_package = "com.landisgyr.edge.gridstream.events";
+option java_outer_classname = "LgEdgeGridstreamEventsProto";
+option objc_class_prefix = "LGGS";
+
+
+//Timestamps in units of seconds since 1/1/1970 UTC, i.e. Posix.
+//Timestamps in this format are not typical but are be more efficient on the
+//wire compared to timestamp.proto. Max size for a timestamp is 5 bytes and
+//often size is smaller due to delta timestamps being used. timestamp.proto
+//can be as large as 7 bytes and average ~4 bytes for delta times.
+
+//A single event as pushed over mesh, or stored in DB on Edge device
+message EdgeEvent {
+  //Time when event was recorded.
+  //Two formats are supported; absolute or delta, 1st event in series is never delta.
+  //Delta times converted to absolute by adding to absolute time of prior event.
+  //Its possible for multiple events to have identical timestamps due to a rapid
+  //burst of event logging activity or backwards time change. Sequence of
+  //events will always be reported in order of occurrence.
+  uint32 timestamp =1;
+
+  //Bit flags 0=time is delta, 1=alarm, 2=scheduled, 3=instant, 4-31=reserved & clear.
+  uint32 flags =2;
+
+  //Event ID, valid range of 0-16384.
+  uint32 event_id =3;
+
+  //Event parameters, valid size of 1-70 bytes, typically 4 bytes.
+  //Optional
+  bytes payload =4;
+}
+
+//Message containing multiple events with extra info to help HES keep track of
+//missing event push messages, used for gap reconciliation & activity tracking.
+message EventLogRecords {
+  //Timestamp of last scheduled event to be pushed prior to this message.
+  //Not updated in response to EventReadRequest message.
+  uint32 last_scheduled_push =1;
+
+  //Timestamp of last alarm event to be pushed prior to this message.
+  //Not updated in response to EventReadRequest message.
+  uint32 last_alarm_push =2;
+
+  //Timestamp of most recently recorded event at the time of message construction.
+  uint32 last_event =3;
+
+  //Timestamp for start of period the events array covers, time is inclusive i.e.
+  //entries may have timestamps equal to start_time.
+  uint32 start_time =4;
+
+  //Timestamp for end of period the events array covers, time not inclusive i.e.
+  //all entries must have timestamps less than end_time (not less than or equal).
+  uint32 end_time =5;
+
+  //Bitfield indicating types of events permitted in the events array.
+  //Bit flags 0=alarm permitted, 1=scheduled permitted, 2=log only permitted,
+  //3-31=reserved & clear.
+  uint32 flags =6;
+
+  //CRC32 computed across entire configuration of event framework
+  fixed32 config_crc =7;
+
+  //Sequence number for this push notification, incremented every time this
+  //message is sent except when events array is empty. Max is 255, after that
+  //rollover back to zero, this is to maintain CC compatibility. Value resides
+  //in NV memory, and persists after a power cycle. Used for gap detection.
+  uint32 push_sequence_number =8;
+
+  //Individual events
+  repeated landisgyr.edge.gridstream.events.EdgeEvent events =9;
+}
+
+//Message from HES requesting events be read.
+//On reception Edge device will search forward through time & stop at the first
+//event with a timestamp greater than or equal to the start value.
+//On reception Edge device will search backwards through time & stop at the first
+//event with a timestamp less than the end value.
+//If number of events found exceeds abs(count) then only the first "count" events
+//are reported. If count is negative then return the last "count" events.
+//Search will be for specific event types, any events with other types will be
+//ignored.
+//If multiple adjacent events with identical timestamps are present then all
+//will be reported.
+message EventReadRequest {
+  //Start timestamp to use when searching for alarm events to return
+  //Optional
+  uint32 alarm_start =1;
+
+  //End timestamp to use when searching for alarm events to return
+  //Optional
+  uint32 alarm_end =2;
+
+  //Max number of alarm events to return
+  //Optional
+  sint32 alarm_max_count =3;
+
+  //Start timestamp to use when searching for scheduled events to return
+  //Optional
+  uint32 scheduled_start =4;
+
+  //End timestamp to use when searching for scheduled events to return
+  //Optional
+  uint32 scheduled_end =5;
+
+  //Max number of scheduled events to return
+  //Optional
+  sint32 scheduled_max_count =6;
+
+  //Start timestamp to use when searching for log events to return
+  //Optional
+  uint32 log_only_start =7;
+
+  //End timestamp to use when searching for log events to return
+  //Optional
+  uint32 log_only_end =8;
+
+  //Max number of log events to return
+  //Optional
+  sint32 log_max_count =9;
+}
+
+//Mode of operation for an individual event
+enum EventState {
+  //Event is turned off, i.e. not recorded in log
+  EVENT_STATE_OFF =0;
+
+  //Event is partially turned off, it's not recorded in log but is instantly
+  //pushed like an alarm on secondary channels like Wi-Fi.
+  EVENT_STATE_INSTANT =1;
+
+  //Event is logged but not pushed to HES according to a schedule
+  EVENT_STATE_LOG =2;
+
+  //Event is logged & pushed to HES according to a schedule
+  EVENT_STATE_SCHEDULE =3;
+
+  //Event is logged pushed to HES at time of occurrence and in schedule
+  EVENT_STATE_ALARM =4;
+}
+
+//Configuration of an individual event
+message PerEventConfig {
+  //Unique Event ID. Valid range 0-16384.
+  //Optional, omitted when system wide settings is described.
+  uint32 event_id =1;
+
+  //Mode of operation for this event type i.e. enabled or not?
+  //Optional
+  landisgyr.edge.gridstream.events.EventState mode =2;
+
+  //In a single day maximum number of events recorded for this event ID.
+  //If event_id is omitted this is the total cumulative limit for the system in 1 day.
+  //Zero means unlimited.
+  //Optional
+  uint32 max_total_count =3;
+
+  //In a single day maximum cumulative size that can be consumed by this event ID.
+  //If event_id is omitted this is the total cumulative limit for the system in 1 day.
+  //Zero means unlimited.
+  //Optional
+  uint32 max_total_bytes =4;
+}
+
+//Event push scheduler configuration, e.g. how often to send EventLogRecords
+message PushScheduleConfig {
+  //Period of event push notifications, units of seconds.
+  uint32 window_period =1;
+
+  //Push notification period offset, time starting from 00:00:00 1st Monday
+  //(ISO 8601) morning of month, units of seconds.
+  uint32 window_offset =2;
+
+  //Randomisation window of event push notifications, units of seconds. Once
+  //window_period elapses a push message is not constructed & pushed until
+  //the random timer elapses, random timer is initialised with a period
+  //ranging from zero to random_period.
+  uint32 random_period =3;
+
+  //Scheduler hold off period after a cold start, units of seconds. After a
+  //cold start the scheduler is blocked from sending push messages to allow the
+  //mesh/HES to recover. If a push becomes eligible within the cold start
+  //window the push is aborted and rescheduled for window_period seconds from
+  //now.
+  uint32 cold_start_period =4;
+
+  //Period of time to wait between sending of heartbeats to HES indicating
+  //event logic is active and state of event log. The timer is reset whenever
+  //an EventLogRecords message is sent. Units of seconds, range of 0-2678400
+  //(1 month), zero means disable.
+  uint32 heart_beat_period =5;
+}
+
+//Set Event logger configuration in Edge device.
+//This message is used to; turn events on or off, rate limit event logging with
+//count or byte limits, set system wide limits or configure scheduler.
+//Edge logging system will first ensure system wide limits are met, then the
+//limits of event_configs.
+//System wide mode setting specifies permitted mode settings, EventState is
+//deliberately ordered to allow this, any event must have a mode setting value
+//equal to or less than the system mode setting e.g. if sys mode is set to
+//EVENT_STATE_LOG then all events are limited to EVENT_STATE_OFF,
+//EVENT_STATE_INSTANT, or EVENT_STATE_LOG.
+message EventConfiguration {
+  //Configuration for individual events
+  //Optional, each element must include event_id
+  repeated landisgyr.edge.gridstream.events.PerEventConfig event_configs =1;
+
+  //System wide configuration for all events. event_id must be omitted.
+  //Optional
+  landisgyr.edge.gridstream.events.PerEventConfig system_config =2;
+
+  //System wide event push scheduler configuration
+  //Optional
+  landisgyr.edge.gridstream.events.PushScheduleConfig sched_config =3;
+}
+
+//Message from HES requesting configuration be read.
+//Edge device will always return system wide config for limits &
+//scheduler, so no need to ask here.
+message ConfigRequest {
+  //Bitfield identifying what parameters need to be returned.
+  //Bit 0=mode, 1=max bytes, 2=max count, 3-31=reserved & clear.
+  uint32 req_bitfield =1;
+
+  //List of events that configuration response should detail
+  //Optional, omitted if request is for system level details only
+  repeated uint32 events =3;
+}
+
+//top level GPB header for Edge Gridstream event framework
+message EdgeGridstreamInfo {
+  //Event log records. Sent from Edge device.
+  //Optional
+  landisgyr.edge.gridstream.events.EventLogRecords log_records =1;
+
+  //Read request for event log records. Sent to Edge device.
+  //Optional
+  landisgyr.edge.gridstream.events.EventReadRequest log_request =2;
+
+  //Set event log configuration. Sent to Edge device. OR
+  //Event log configuration records. Sent from Edge device.
+  //Optional
+  landisgyr.edge.gridstream.events.EventConfiguration configs =3;
+
+  //Read request for event log configuration. Sent to Edge device.
+  //Optional
+  landisgyr.edge.gridstream.events.ConfigRequest config_request =4;
+}

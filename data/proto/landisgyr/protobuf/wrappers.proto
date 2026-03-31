@@ -1,0 +1,67 @@
+// Proto
+//
+// Copyright 2023 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "WrappersProto";
+option java_multiple_files = true;
+option optimize_for = LITE_RUNTIME;
+
+// A 'double' array value message.
+message DoubleArrayValue {
+  // A 'double' array value.
+  repeated double value = 1;
+}
+
+// A 'float' array value message.
+message FloatArrayValue {
+  // A 'float' array value.
+  repeated float value = 1;
+}
+
+// An 'int64' array value message.
+message Int64ArrayValue {
+  // An 'int64' array value.
+  repeated int64 value = 1;
+}
+
+// A 'uint64' array value message.
+message UInt64ArrayValue {
+  // A 'uint64' array value.
+  repeated uint64 value = 1;
+}
+
+// An 'int32' array value message.
+message Int32ArrayValue {
+  // An 'int32' array value.
+  repeated int32 value = 1;
+}
+
+// A 'uint32' array value message.
+message UInt32ArrayValue {
+  // A 'uint32' array value.
+  repeated uint32 value = 1;
+}
+
+// A 'bool' array value message.
+message BoolArrayValue {
+  // A 'bool' array value.
+  repeated bool value = 1;
+}
+
+// A 'string' array value message.
+message StringArrayValue {
+  // A 'string' array value.
+  repeated string value = 1;
+}
+
+// A 'bytes' array value message.
+message BytesArrayValue {
+  // A 'bytes' value.
+  repeated bytes value = 1;
+}

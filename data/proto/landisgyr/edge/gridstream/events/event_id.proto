@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package landisgyr.edge.gridstream.events;
+
+option csharp_namespace = "LG.Edge.Gridstream.Events";
+option java_package = "com.landisgyr.edge.gridstream.events";
+option java_outer_classname = "EventIdProto";
+option objc_class_prefix = "LGGS";
+
+// https://wiki.landisgyr.net/display/GDPA/Edge+Gridstream+Event+Framework+-+Master+Event+ID+List
+
+enum EventId {
+  BACKWARDS_TIME_JUMP = 0;               // RTC used by EGEF had a backwards time change across a second boundary
+  EGEF_CONFIGURATION_CHANGE = 1;         // EGEF configuration has changed
+  WIFI_AP_ENABLED = 2;                   // Wi-Fi Access Point inside edge device has been enabled
+  WIFI_AP_DISABLED = 3;                  // Wi-Fi Access Point inside edge device has been disabled
+  WIFI_STA_ENABLED = 4;                  // Edge device has established Wi-Fi connection with another Wi-Fi device
+  WIFI_STA_DISABLED = 5;                 // Edge device has dropped Wi-Fi connection with another Wi-Fi device
+  WIFI_SIGNAL_LOW = 6;                   // Edge device Wi-Fi connection signal is too low & risking dropout
+  WIFI_SIGNAL_HIGH = 7;                  // Edge device Wi-Fi connection signal is too high
+  SERVER_CONNECTION_FAILED = 8;          // Edge device connection with IP server has failed
+  WIFI_SSID_ERR = 9;                     // Wi-Fi SSID Error, unable to find SSID
+  WIFI_PASS_ERR = 10;                    // Wi-Fi Password Error, password invalid
+  WIFI_GENERAL_ERR = 11;                 // Wi-Fi catchall connection error
+  IP_ADDRESS_CHANGED = 12;               // The IP address of one of the edge device interfaces has changed
+  DATABOT_TRANSPORT_QUEUE_FULL = 13;     // When databot transport queue gets full
+  EIC_SHUTDOWN_OVERTEMP = 14;            // EIC is shutting down due to over temperature
+  EIC_LOGIN_METER_ERR = 15;              // EIC is failed to login meter
+}

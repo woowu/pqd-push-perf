@@ -1,0 +1,44 @@
+syntax  = "proto3";
+
+//Definition of DSP engine messages common to local EIC & HES.
+//Version 2024-04-22
+
+package landisgyr.edge.dsp;
+option csharp_namespace = "LG.Edge.Dsp";
+option java_package = "com.landisgyr.edge.dsp";
+option java_outer_classname = "DspCommonProto";
+option objc_class_prefix = "LGGS";
+
+/**
+ * Overall DSP engine status in response to read request.
+ */
+message SysStatus{
+  message Group {
+      int32 id =1; //group ID
+      bool enabled =2; //true is group is enabled, i.e. running
+      int32 offset_allocation =3; //offset of first block in allocation
+      int32 size_allocation =4; //max # of blocks allowed for this group
+      int32 size =5; //actual number of blocks in this group
+      bool is_preloaded =6; //true if preloaded direct from EIC system firmware
+  }
+  repeated Group groups=1;
+  message DescriptorStat {
+    int32 id =1; //Block ID for descriptor block
+    int32 q_length =2; //Number of descriptors in queue
+    int32 q_last_sequence =3; //Sequence # of most recent record in queue
+    int32 q_last_time =4; //Sec since 1970 for most recent record in queue.
+  }
+  repeated DescriptorStat descriptor_q_states =2; //list of descriptor queues.
+  string version =3; //Version of DSP Engine system component
+  int32 config_change_count =4; //# of config changes since 1970.
+  int32 error_code =5; //DSP Engine error code, 0=OK
+  string error_msg =6; //DSP Engine error message
+  int32 error_count =7; //# of errors since 1970
+  int32 waveform_int_count =8; //# of waveform frames since boot.
+  int32 periodic_int_count =9; //# of periodic frames since boot.
+  int32 waveform_int_seq_now =10; //last sequence # for waveform frames.
+  int32 periodic_int_seq_now =11; //last sequence # for periodic frames.
+  int32 waveform_int_seq_pf =12; //seq # of waveform frame @ last power fail
+  int32 periodic_int_seq_pf =13; //seq # of periodic frame @ last power fail
+  int32 base_sample_period_us =14; //sample rate of system in microseconds.
+}

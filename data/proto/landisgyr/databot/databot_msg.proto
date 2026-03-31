@@ -1,0 +1,107 @@
+//
+//   databot proto
+//
+// Copyright 2022-2024 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.databot;
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/wrappers.proto";
+
+import "landisgyr/databot/data_drop.proto";
+import "landisgyr/databot/config_data.proto";
+
+import "landisgyr/protobuf/timestamp.proto";
+import "landisgyr/protobuf/command_payload.proto";
+import "landisgyr/protobuf/data_transport.proto";
+
+option java_package = "com.landisgyr.databot";
+option java_outer_classname = "DataMsgProto";
+
+//
+// Top level DataBot data exchange protocol
+//
+message DataBot_DataMsg{
+  // version of message format
+  uint32 version = 1;
+
+  // optional: service to send/drive data to
+  string service = 2;
+
+  // optional: nodeID (ESN)
+  string nodeID = 3;
+
+  // optional: source IP address
+  string source_ip = 4;
+  
+  // optional: source where data came from
+  string source = 5;
+
+  // optional: source ID -- freeform based on context (TBD)
+  string source_ID = 6;
+
+
+  uint32 msg_id = 7; // We expect this number to be non-zero, unique/incremented on each data broker API call.
+
+  // type of (how to handle) this data drop
+  enum DataCmd {
+    DataCmd_UNKNOWN = 0;
+    SET = 1;
+    REQ = 2;
+    // internal to dataBot (handling, cmd/control)
+    INTERNAL = 3;
+    // custom command for general use outside this definition scope
+    CUSTOM = 4;
+  }
+  DataCmd data_cmd = 8;
+
+  // optional: custom type to drive how to handle custom data
+  uint32 custom_type = 9;
+
+  // timestamp of the data
+  landisgyr.protobuf.Timestamp timestamp = 10;
+
+  // the type of data
+  enum DataType {
+    DataType_UNKNOWN = 0;
+    DATA_DROP_GPB = 1;
+    KEYVAL_CSV = 2;
+
+    // defined in other GPB proto files, sent as a raw GPB in payload_data
+    TELEMETRY_GPB = 3;
+    WEATHER_GPB = 4;
+
+    CONFIG_GPB = 5;
+
+    CMD_APP_GPB = 6;
+
+    CMD_SYS_GPB = 7;
+
+    DATA_TRANSPORT_GPB = 8;
+  }
+
+  DataType data_type = 11;
+
+  // only 1 of these will be set based on type (they use same memory space)
+  // all data types that aren't explicitly listed will use the
+  // payload_data variable for payloads
+
+  oneof data_payload_oneof {
+    DataDrop data_drop = 12;
+    bytes payload_data = 13;
+    string key_val_csv = 14;
+    ConfigData config_data = 15;
+    DataBotCommandPayload command = 16;  // This can either be a CMD_SYS_GPB or CMD_APP_GPB
+    landisgyr.protobuf.DataTransport data_transport = 17;
+  }
+}
+
+// DataBot Command Payload
+message DataBotCommandPayload {
+    // App/System Identifier
+    google.protobuf.StringValue identifier = 1;
+    // Command Payload
+    landisgyr.protobuf.CommandPayload payload = 2;
+}

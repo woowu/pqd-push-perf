@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package landisgyr.databot;
+
+import "landisgyr/protobuf/timestamp.proto";
+
+option java_package = "com.landisgyr.databot";
+option java_outer_classname = "DataDropProto";
+
+message DataDroplet {
+  // Timestamp
+  landisgyr.protobuf.Timestamp timestamp = 1;
+
+  //optional : domain
+  string domain = 2;
+  
+  // optional :  pool
+  string pool = 3;
+
+  // optional :  database
+  string database = 4;
+  // optional : table
+  string table = 5;
+  
+  string section = 6;
+  string key = 7;
+  string val = 8;
+}
+
+
+message DataDrop {
+  repeated DataDroplet data_droplet = 1;
+}

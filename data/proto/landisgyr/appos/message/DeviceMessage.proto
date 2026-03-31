@@ -1,0 +1,41 @@
+syntax = "proto3";
+ 
+package landisgyr.appos.message;
+option csharp_namespace = "LG.AppOSCodec.Common";
+option java_package = "com.landisgyr.appos.message";
+option java_outer_classname = "DeviceMessageProto";
+option optimize_for = LITE_RUNTIME;
+ 
+import "google/protobuf/timestamp.proto";
+ 
+enum MessageType {
+    UNKNOWN = 0;
+    APP_OS_REGISTRATION = 1;
+    APP_OS_LIFE_CYCLE = 2;
+    APP_OS_EVENT_LOG = 3;
+    APP_OS_MAINTENANCE = 4;
+    NMP_FILE_TRANSFER = 5; // Message payload will be as https://wiki.landisgyr.net/x/fa4pCg not GPB
+}
+ 
+enum SecurityMode {
+    DEFAULT = 0; // This will be the default security mode of a device (Open for initial RF Mesh Only release)
+    UNENCRYPTED = 1;
+    DEVICE_ENCRYPTED = 2;
+    SYSTEM_ENCRYPTED = 3;
+    DEVICE_SIGNED_AND_ENCRYPTED = 4;
+}
+ 
+message CorrelationDetails {
+    uint32 identifier = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    string guid = 3;
+}
+ 
+message DeviceMessage {
+    uint32 version = 1;
+    uint32 deviceIdentifier = 2;
+    MessageType messageType = 3;
+    SecurityMode securityMode = 4;
+    bytes messagePayload = 5;
+    CorrelationDetails correlationDetails = 6;
+}

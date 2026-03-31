@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+// Definition of Edge (EIC-Revelo etc.) events specific to the event manager. Includes
+//  Backwards time change event.
+//  Configuration change event.
+
+// Version 2025-05-29
+
+package landisgyr.edge.gridstream.events;
+
+option csharp_namespace = "LG.Edge.Gridstream.Events";
+option java_package = "com.landisgyr.edge.gridstream.events";
+option java_outer_classname = "LgEventManagerEventsProto";
+option objc_class_prefix = "LGGS";
+
+/**
+ * Generate this event when a backward time change of more than 1 second has occurred.
+ * This event must be recorded if other events have occurred within the overlapping 
+ * time interval. Event can be omitted if no other event occurred within the
+ * overlapping time interval.
+ */
+message BackwardTimeJump {
+  // Timestamps in units of seconds since 1/1/1970 UTC, i.e. Posix.
+  uint32 old_timestamp = 1;
+}
+
+/**
+ * Generate this event when IP address of an interface changes.
+ */
+message ConfigurationChanged {
+  // Optional bitfield of global settings that have changed.
+  // Bit 0=window_period, 1=window_offset, 2=random_period, 3=cold_start_period, 4=heart_beat_period, 5=system_config, 6-31=reserved & clear.
+  uint32 changed_system = 1;
+  // Optional list of event IDs that have been changed
+  repeated uint32 changed_events = 2;
+}
+
+message EICOvertempShutdown {
+  // Current temperature detected by EIC in degree Celsius.
+  int32 current_temp = 1;
+  // Delta Temp in degrees Celsius (always a positive value or zero). EIC will be repowered at metrology current temperature minus this value.
+  uint32 delta_temp = 2;
+}
+
+enum EICLoginMeterErrorReasonDetail {
+  UNKOWN = 0;
+  ASSOCIATION_ERROR = 1;
+  AUTHENTICATION_ERROR = 2;
+}
+
+message EICLoginMeterError{
+  // Error reason, 0->unkown, 1->association error, 2->authentication error
+  landisgyr.edge.gridstream.events.EICLoginMeterErrorReasonDetail reason = 1;
+}

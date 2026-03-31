@@ -1,0 +1,28 @@
+// Proto
+//
+// Copyright 2023 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.databot;
+
+option csharp_namespace = "LG.DataBot";
+option java_package = "com.landisgyr.databot";
+option java_outer_classname = "ConfigDataProto";
+option optimize_for = LITE_RUNTIME;
+
+import "landisgyr/databot/varval_data.proto";
+
+// Config Data
+message ConfigData {
+    repeated ConfigDataSet set = 1;
+    // continue Set to true if not last config message
+    bool continue = 2;
+}
+
+message ConfigDataSet {
+    oneof data {
+        // varval data
+        landisgyr.databot.VarValData varval_data = 1;
+    }
+}

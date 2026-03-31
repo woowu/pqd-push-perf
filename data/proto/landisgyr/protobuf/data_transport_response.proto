@@ -1,0 +1,23 @@
+// Proto
+//
+// Copyright 2024 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "DataTransportResponseProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/wrappers.proto";
+
+message DataTransportResponse {
+    uint32 message_id = 1;
+    enum DataTransportStatus {
+      DATA_TRANSPORT_STATUS_SUCCESS = 0;
+      DATA_TRANSPORT_STATUS_ERROR = 1;      // For now it's generic error
+    }
+    DataTransportStatus dataTransportStatus = 2;
+}

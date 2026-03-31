@@ -1,0 +1,22 @@
+// Proto
+//
+// Copyright 2024 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "DataTransportProto";
+option optimize_for = LITE_RUNTIME;
+
+import "landisgyr/protobuf/app_data.proto";
+import "landisgyr/protobuf/sys_data.proto";
+
+// Data Transport Message Definition
+//   for sending data from the Data Transport Service on an Edge Device to the HES over a metered network connection.
+message DataTransport {
+    repeated landisgyr.protobuf.AppData app_data = 1;
+    repeated landisgyr.protobuf.SysData sys_data = 2;
+}

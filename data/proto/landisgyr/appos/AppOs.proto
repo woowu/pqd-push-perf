@@ -1,0 +1,418 @@
+// Proto
+//
+// Copyright 2020-2025 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.appos;
+option csharp_namespace = "LG.AppOSCodec.Common";
+option java_package = "com.landisgyr.appos";
+option java_outer_classname = "AppOsProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/timestamp.proto";
+import "landisgyr/appFile/AppDescription.proto";
+import "landisgyr/appos/resource.proto";
+import "landisgyr/databot/config_capabilities.proto";
+
+
+// *********************************   DEVICE MESSAGE ENCODING  **************************************************************************** /
+
+// (DeviceMessage.proto MessageType.AP_OS_REGISTRATION)
+// Direction AppMgr <--> AppOS
+message AppOsRegistration {
+	string appOsVer = 1;
+	string hostOsVer = 2;
+	string hostHwVer = 3;
+	bool confirmRequired = 4;
+	uint32 appOsCaps = 5; // 0-GPIO 1-Communications 2-ServiceDisconnect 3-DemandReset 4-MeterAccess
+	C06Capabilities c06caps = 6;
+	repeated AppData appData = 7;
+	repeated ConnectedDeviceDetail connectedDeviceDetail = 8;
+	AppOsConfig appOsConfigData = 9;
+	uint32 numberOfSupportedApps = 10; // default 5; If legacy CPU board in Border Router Mode this will return 0 which CC will interpret as 5, otherwise 5
+	uint32 cusn = 11; // identifies Bridge that the registration command came from
+	string appOsModel = 12; // AppOS model identifier (ex. 'LGNetworkBridge' for network bridge)
+	string hardwareModel = 13; // Hardware model identifier (ex. 'N2200' for network bridge)
+	reserved 14; // Depracated bool senseCoreEnabled
+	FeatureSupport senseCoreFeature = 15;
+	landisgyr.databot.ConfigCapabilities configCapabilities = 16;
+	string meterID = 17;					// Meter ID
+	string meterSerialNumber = 18;			// Meter Serial Number
+	VersionInfo metrologyFWVersion = 19;    // Metrology FW Version
+	GeoLocation geoLocation = 20;			// Geo Location
+	string hardwarePlatform = 21;           // AppOS Architecture (hardwarePlatform from AppDescription) for application compatibility
+	string minimumAppOsVersion = 22;        // Minimum AppOS Version for application compatibiltiy
+	FeatureSupport telemetryFeature = 23;   // Telemetry feature support state
+	FeatureSupport senseCoreOverride = 24;  // FEATURE_UNKNOWN  = override inactive
+											// FEATURE_ENABLED  = override active Sense core enabled
+											// FEATURE_DISABLED = override active Sense core disabled
+	TelemetryStatus telemetry_status = 25;			// Telemetry status is derived from TelemetryStatus enum
+}
+
+// Unsupported
+// (DeviceMessage.proto MessageType.APP_OS_EVENT_LOG)
+// Direction AppMgr --> AppOS
+message AppOsGetEventLog {
+	uint32 actionType = 1; //Return Events based on defined Action. 0 = All Events and the rest of the parameters in the command are ignored, Otherwise the ActionType would filer onDo Nothing Events, or Store Only, or Store and Send Later on next Event Push, or Store and Send Immediately
+	google.protobuf.Timestamp startTimestamp = 2;  // for future use
+	google.protobuf.Timestamp endTimestamp = 3;   // for future use
+	uint32 startEventSeqNum = 4; // filter used for Event Gap Retrieval
+	uint32 endEventSeqNum = 5;
+}
+
+// (DeviceMessage.proto MessageType.APP_OS_EVENT_LOG)
+// Direction AppMgr <-- AppOS
+message AppOsEventLogs {
+	repeated EventFrame event = 1; // EventFrame (see AppOS Events definition)
+}
+
+// (DeviceMessage.proto MessageType.APP_OS_LIFE_CYCLE)
+// Direction AppMgr --> AppOS
+message AppOsCommand {
+	CommandType cmdType = 1;
+	repeated string appId = 2;
+	PiiWipe piiwipe = 3;
+	AppConfigControl appConfigControl = 4;
+}
+
+// (DeviceMessage.proto MessageType.APP_OS_LIFE_CYCLE)
+// Direction AppMgr <-- AppOS
+message AppOsCommandResponse {
+	CommandType cmdType = 1;
+	repeated AppResponseStatus appStatus = 2;
+}
+
+// Unsupported
+// (DeviceMessage.proto MessageType.APP_OS_MAINTENANCE)
+// Direction AppMgr --> AppOS
+message MaintCommand {
+	MaintenanceCommandType MaintCmdType = 1;
+	repeated DAConfig daConfig = 2;
+	AppOsConfig appOsConfig = 3;
+	reserved "appOsStatus"; // AppOS Status command does not currently have a payload.
+	reserved 4;
+	repeated AppStatusMsg appStatusMsg = 5;
+	reserved "appOsRestart"; // Restart AppOS command does not currently have a payload but a delay or time might be useful.
+	reserved 6;
+}
+
+// Unsupported
+//(DeviceMessage.proto MessageType.APP_OS_MAINTENANCE)
+// Direction AppMgr <-- AppOS
+message MaintenanceCommandResponse {
+	repeated DAConfig daConfig= 1; // repeated for each App
+	AppOsConfig appOsConfig= 2;
+	AppOsStatus appOsStatus = 3;
+	repeated AppStatusMsg appStatusMsg = 4;
+	Status maintenanceCommandStatus = 5; // cmd success, fail
+}
+
+// *********************************   END DEVICE MESSAGE ENCODING  ************************************************************************* /
+
+// *********************************   MESSAGES USED IN ABOVE ENCODING  ********************************************************************* /
+
+enum TelemetryStatus {
+	TELEMETRY_UNAVAILABLE = 0;
+	TELEMETRY_AVAILABLE = 1;
+	APP_TELEMETRY_ENABLED = 2;
+	DEVICE_TELEMETRY_ENABLED = 3;
+	APP_AND_DEVICE_TELEMETRY_ENABLED = 4;
+}
+
+// AppOS Feature Support definition.
+enum FeatureSupport {
+	// A value of FEATURE_UNKNOWN means:
+	// 1. Feature is not supported when sent from AppOS.
+	// 2. Feature is not changed when received by AppOS.
+	FEATURE_UNKNOWN = 0;
+	FEATURE_ENABLED = 1;
+	FEATURE_DISABLED = 2;
+}
+
+// AppOS Application Status
+enum AppStatus {
+	option allow_alias = true;
+	UNKNOWN = 0;
+	RUNNING = 1;
+	STARTED = 1;
+	ABNORMAL_TERM = 2;
+	STOPPED = 3;
+	DOWNLOADED = 4;  // App is on file system but not installed or running.
+	INSTALLED = 5;
+	UNINSTALLED = 6;
+	REMOVED = 7;
+}
+
+// Authentication Method
+enum AuthMethod {
+	NONE = 0; // Bridge will initially use this
+	PANA = 1;
+	EAPTLS = 2;
+	CHAP = 3;
+	PAP = 4;
+}
+
+//C06Capapbilities all null for AppOS on Bridge (NA - more for EIC with comms modules)
+message C06Capabilities {
+	uint32 version = 1; // C06 version
+	uint32 bitFields = 2; //0-SDSwitch 1-LastGasp 2-SafeShutdown Supported (SC/Battery backed device) 3-OutageConsolidation (Do we need this)
+	//4-FSKSupported 5-OFDMSupported ...
+	uint32 edgeCapability = 3; //0=NotConnected 1=Connected 2=BuiltIn */ // This may be obsolete as it is covered with the MMF and the Next Gen Meter (with EIC SoM) capability in HW
+	AuthMethod authMethod = 4;
+	int32 maxRfPowerPhy0 = 5;
+	int32 maxRfPowerPhy1 = 6;
+}
+
+// AppOS Application Data
+message AppData {
+	string appId = 1; //appID (from App manifest) options: 1) cusn.reverse domain name.index (ex AABBCCDD.com.landisgyr.networkbridge.kernel.1), 2) or RDN only,,,
+	/// do we need a short version of AppID for events etc to reduce bandwidth; CC would have to associate short version to AppID
+	string version = 2; // App version
+	google.protobuf.Timestamp installedDate = 3;
+	google.protobuf.Timestamp lastUpdateDate = 4;
+	uint32 authStatusBits = 5; // Should not be used, use authStatus instead
+	AppStatus appStatus = 6; // Running | Abnormal Termination | Stopped
+	bool resident = 7; // True when app is built-in
+	uint32 port = 8; // Assigned UDP port number--not populated when port has not been assigned.
+	landisgyr.appFile.AppAuthorization authStatus = 9;
+	string platform = 10; // AppOS Version (platform from AppDescription) for application identification purposes
+	string hardwarePlatform = 11; // AppOS Architecture (hardwarePlatform from AppDescription) for application identification purposes
+}
+
+// AppOS Connected Device Detail
+message ConnectedDeviceDetail {
+	string customDeviceName = 1;
+}
+
+// AppOS Registration Push Behavior
+enum RegistrationPushBehavior {
+	EVERY_BOOTUP = 0;  // every bootup repeat reg push until confirmed
+	UNTIL_CONFIRMED = 1; // repeat reg push only until confirmed (persistent confirmation)
+}
+
+// Resource Settings
+message ResourceSettings{
+	uint32 memoryLimit = 1; // (RAM) Limit in MB;
+	uint32 cpuLimit = 2; // CPU limit in percent;
+	uint32 javaHeapSize = 3; // Java Heap size in MB
+	uint32 javaHeapSizeLive = 4; // Current Java Heap size in MB
+}
+
+// AppOS Config
+message AppOsConfig{
+	RegistrationPushBehavior regPushBehavior = 1;   // enumeration of push behavior (default every bootup,)
+	uint32 registrationTimeoutRetryInterval = 2;  // how long in seconds do we wait between registration pushes (default 4 hours)
+	uint32 messageTimeoutInterval = 3;  // how long to wait for a command Ack in seconds
+	bool includeConfigwithRegistration = 4;  // default true - DO WE NEED THIS? FOR SIMPLIFICATION CAN WE JUST INCLUDE IT?
+	uint32 eventPacketLimit = 5; // max number of event packets to send in one AppOSGetEventLog
+	uint32 eventPushSchedule = 6; // Interval between Event pushes in minutes (default 30 minutes - note there also needs to be randomization so all bridges dont push at same time)
+	uint32 eventLogMaxFilesize = 7;// size of EventLog filesize or database size (default TBD)
+	// add more as we go here
+	ResourceSettings resourceSettings = 8; // AppOS resource settings
+}
+
+// AppOS Command Message Command Type
+enum CommandType {
+	START = 0; // start now
+	STOP = 1; // Stop a set of Apps and reclaim resources of a set of apps.  An empty appId list will stop all non-resident apps.
+	REMOVE = 2; // Unstage and remove from file-system
+	SHUTDOWN = 3; // Shutdown: currently not implemented.
+	SCHEDULE = 4; // future capability: start Time and date, Stop time (optional), repeating flag (true, false), repeat interval in minutes
+	PIIWIPE = 5;
+}
+
+// Status
+enum Status {
+	SUCCESS = 0;
+	FAILURE = 1;
+}
+
+// Data Type
+enum DataType {
+	PRIVATE = 0;
+	PUBLIC = 1;
+	ALL = 2;
+}
+
+// AppOS Startup Mode
+enum StartupMode {
+	NORMAL = 0;
+	SAFE = 1;
+}
+
+// App Response Status
+message AppResponseStatus {
+	string appId = 1;
+	Status status = 2;
+	string debugStr = 3;
+}
+
+// PII Wipe
+message PiiWipe {
+	DataType dataType = 1;
+}
+
+// Application configuration control
+message AppConfigControl {
+	bool remove_app_config = 1;
+}
+
+// AppOS Resource
+message AppOsResource {
+	uint32 disk = 1; // Disk Space value at the time of any threshold breached
+	bool disk_alert = 2; // Bit indicating whether event was generated because disk space threshold breached
+	uint32 disk_limit = 3; // Disk space threshold value
+	uint32 ram = 4; // RAM value at the time if any threshold breached
+	bool ram_alert = 5; // Bit indicating whether event was generated because RAM threshold breached
+	uint32 ram_limit = 6; // RAM threshold value
+	uint32 cpu = 7; // CPU % value at the time of any threshold breached
+	bool cpu_alert = 8; // Bit indicating whether event was generated because CPU threshold breached
+	uint32 cpu_limit = 9; // CPU threshold value
+	uint32 net_per_second = 10; // Network value at the time of any threshold breached
+	bool net_per_second_alert = 11; // Bit indicating whether event was generated because Network threshold breached
+	uint32 net_per_second_limit = 12; // Network threshold value
+	string appID = 13;
+	int32 errorCode = 14;
+	string errorMessage = 15;
+	Cpu cpu_status = 16;
+	Ram ram_status = 17;
+	Net net_status = 18;
+	Fs fs_status = 19;
+}
+
+// EventFrame definition
+message EventFrame {
+	// Event type enumeration
+	enum EventType {
+		UNKNOWN = 0;
+		APP_OS_STARTED = 1;
+		APP_STATE_CHANGED = 2;
+		APP_SOURCED_EVENT = 3;
+		APP_OS_EXCEPTION = 4;
+		APP_OS_SECURITY = 5;
+		APP_OS_RESOURCE = 6;
+		APP_OS_MESSAGE = 7;
+		APP_OS_RAW_DATA = 8;
+		APP_OS_SYS_UPDATE = 9;
+		App_OS_PII_WIPE = 10;
+		APP_OS_APP_CONFIG = 11;
+	}
+	// Event data definition
+	message EventData {
+		message AppOsStarted {
+			StartupMode starupMode = 1;
+			int32 lastExitStatus = 2;
+		}
+		message AppStateChanged {
+			AppStatus appStatus = 1;
+		}
+		message AppSourcedEvent {
+			// TBD
+		}
+		message AppOsException {
+			enum AppOsExceptionType {
+				UNKNOWN = 0;
+				INSTALL_ERROR = 1;
+				UNINSTALL_ERROR = 2;
+				CONFIG_ERROR = 3;
+				APP_CONFIG_ERROR = 4;
+				APP_BUNDLE_ERROR = 5;
+				PII_WIPE = 6;
+				APP_UNCAUGHT_EXCEPTION = 7;  // Any throwable that is not caught by an application.
+			}
+			AppOsExceptionType type = 1;
+			string appID = 2;
+			string appFilename = 3;
+			int32 errorCode = 4;
+			string errorMessage = 5;
+		}
+		message AppOsSecurity {
+			// TBD
+		}
+		message AppOsSysUpdate {
+			string meshIPv6Addr = 1;
+		}
+		message AppOsPiiWipe {
+			Status status = 1;
+		}
+		message AppConfigStatus {
+			Status remove = 1;
+		}
+		uint32 version = 1;
+		AppOsStarted appOsStarted = 2;
+		AppStateChanged appStateChanged = 3;
+		AppSourcedEvent appSourcedEvent = 4;
+		AppOsException appOsException = 5;
+		AppOsSecurity appOsSecurity = 6;
+		AppOsResource appOsResource = 7;
+		string message = 8;
+		bytes rawData = 9;
+		AppOsSysUpdate appOsSysUpdate = 10;
+		AppOsPiiWipe appOsPiiWipe = 11;
+		AppConfigStatus appConfigStatus = 12;
+	}
+	// System status bit field values
+	enum SystemStatus {
+		OK = 0; // No system errors detected.
+		// Reserving bits 0 and 1 for system errors but not currently used.
+		EVENT_STORE_INSERT_ERROR = 4; // Indicates event store insertion error.
+		// Reserving bit 3 for an additional event store error.
+	}
+	uint32 version = 1; // Event frame version for managing changes.
+	uint32 sequenceNumber = 2; //- contiguous/rolling sequence number used for Event Gap Reconciliation (required by CC). Note - being 32 bit, it will probably never roll in its life time.
+	google.protobuf.Timestamp eventTimeStamp = 3; // Date Time that event occurred
+	string sourceDeviceID = 4; // Source of Event identifying Bridge -we will use CUSN - if not supported by CoAP; configured by API
+	string appID = 5; // source of Event within the Bridge - two types: 1) either an App with a unique AppID (defined in manifest), or 2) AppOS sourced events will report an appID = "0" (or null, or remove ths field and AppMgr would use default indicating AppOS?
+	EventType eventType = 6; // Use this field to determine how to parse event data.
+	bytes eventData = 7; // Use EventData message to parse this field.  Display bytes if parsing fails.
+	uint32 systemStatus = 8; // System status, refer to SystemStatus enum for definition.
+	AppData appData = 9; // Application information for identification purposes
+}
+
+// Maintenance Command Type
+enum MaintenanceCommandType {
+	CMD_UNKNWON = 0;
+	DA_CONFIG= 1; // DA Device Configuration
+	APPOS_CONFIG = 2; // Configuration of AppOS / MicroEJ Related parameters
+	APPOS_STATUS = 3; // Status of AppOS / MicroEJ subsystem
+	APP_STATUS = 4; // Status/health of individual Apps
+	RESTART_APPOS = 5; // Restart of AppOS (troubleshooting tool)
+}
+
+// DA Config
+message DAConfig{
+	string appID = 1;
+	string deviceName = 2;
+}
+
+// AppOS Status
+message AppOsStatus{
+	uint32 numberofApps = 1;
+	uint32 memoryUsage = 2; // in bytes
+	google.protobuf.Timestamp lastAppOSStartupDateTime = 3;
+}
+
+// App Status Message
+message AppStatusMsg {
+	string appID = 1;
+	AppStatus appStatus = 2; // reuse from field in Registration cmd definition
+	google.protobuf.Timestamp lastAppStartupDateTime = 3; // Need Date/Time type
+	AppOsResource appOsResource = 4;
+}
+
+// Version Info
+message VersionInfo
+{
+	// Version string
+	string version = 1;
+}
+
+// Geo Location
+message GeoLocation
+{
+	// zip code
+	string zip_code = 1;
+}
+
+// *********************************   END MESSAGES USED IN ABOVE ENCODING  ***************************************************************** /

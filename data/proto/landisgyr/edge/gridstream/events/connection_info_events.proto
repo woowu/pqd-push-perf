@@ -1,0 +1,56 @@
+syntax  = "proto3";
+
+//Definition of Edge (EIC-Revelo etc.) events specific to network connection status. Includes
+//  Server connection fail event.
+//  Network interface address change event.
+
+//Version 2022-07-10
+
+package landisgyr.edge.gridstream.events;
+option csharp_namespace = "LG.Edge.Gridstream.Events";
+option java_package = "com.landisgyr.edge.gridstream.events";
+option java_outer_classname = "LgConnectionInfoEventsProto";
+option objc_class_prefix = "LGGS";
+
+/**
+ * Edge device network interface ID.
+ */
+enum InterfaceId{
+  //IPv6 address used by device on mesh IP/WiSUN networks
+  MESH_IPV6 =0;
+  //IPv4 address of Wi-Fi AP mode interface, i.e. address dictated by edge device
+  WIFI_AP_IPV4 =1;
+  //IPv4 address of Wi-Fi station mode interface, i.e. address dictated by DHCP server in home router 
+  WIFI_ST_IPV4 =2;
+  //IPv4 address of Ethernet interface
+  ETH_IPV4 =3;
+}
+
+enum ServerError{
+  //no error, this message indicates system is nominal
+  NO_ERROR = 0;
+  //Error, specific type can't be determined.
+  UNKNOWN_ERROR = 1;
+}
+
+/**
+ * Generate this event when a connection to a server (Sense or any other 3rd party) fails.
+ */
+message ServerConnectionFailure{
+  //Mandatory. ID specified according to globally maintained central register of applications
+  uint32 app_id =1;
+  //Mandatory
+  landisgyr.edge.gridstream.events.ServerError error_id =2;
+}
+
+/**
+ * Generate this event when IP address of an interface changes.
+ */
+message IpAddressChanged{
+  //Mandatory
+  landisgyr.edge.gridstream.events.InterfaceId id =1;
+  //Mandatory, MSB first, 16(ipv6) or 4(ipv4) bytes
+  bytes new_address =2;
+  //Optional, MSB first, 16(ipv6) or 4(ipv4) bytes
+  bytes old_address =3;
+}

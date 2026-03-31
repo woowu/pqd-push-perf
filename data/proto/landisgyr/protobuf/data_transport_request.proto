@@ -1,0 +1,25 @@
+// Proto
+//
+// Copyright 2024 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "DataTransportRequestProto";
+option optimize_for = LITE_RUNTIME;
+
+import "landisgyr/protobuf/data_transport.proto";
+
+message DataTransportRequest {
+    enum Priority {
+      DATA_TRANSPORT_PRIORITY_STANDARD = 0;
+      DATA_TRANSPORT_PRIORITY_ELEVATED = 1;
+    }
+    Priority priority = 1;
+    bool confirm = 2;
+    uint32 message_id = 3;
+    DataTransport data_transport = 4;
+}

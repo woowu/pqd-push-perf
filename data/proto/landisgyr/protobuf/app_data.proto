@@ -1,0 +1,22 @@
+// Proto
+//
+// Copyright 2024 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.protobuf;
+
+option csharp_namespace = "LG.Protobuf";
+option java_package = "com.landisgyr.protobuf";
+option java_outer_classname = "AppDataProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/wrappers.proto";
+import "landisgyr/protobuf/timestamp.proto";
+
+// Applicaiton Data Message Definition
+message AppData {
+    google.protobuf.StringValue app_identifier = 1;
+    landisgyr.protobuf.Timestamp timestamp = 2;  // Unset by edge device and ignored by HES for now.
+    google.protobuf.BytesValue payload_bytes = 3;
+}

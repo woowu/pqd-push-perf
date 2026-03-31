@@ -1,0 +1,72 @@
+// Proto
+//
+// Copyright 2020-2025 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.appFile;
+option csharp_namespace = "LG.AppOSCodec.AppFile";
+option java_package = "com.landisgyr.appfile";
+option java_outer_classname = "AppFileProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/timestamp.proto";
+import "landisgyr/appos/resource.proto";
+
+enum AppAuthorization {
+    APP_AUTH_NONE = 0;
+    APP_AUTH_LG_APPROVED = 1;
+    APP_AUTH_THIRD_PARTY = 2;
+    APP_AUTH_UTILITY = 3;
+}
+
+enum AppPermissions {
+    APP_PERM_NONE = 0;
+    APP_PERM_SERVICE_SWITCH = 1;
+    APP_PERM_METER_READ = 2;
+    APP_PERM_DA_DEVICE = 3;
+}
+
+// Host attributes declared by AppOS application developers to consider when determining application compatibility
+message HostAttributes {
+    string hardwarePlatform = 1;  // AppOS Architecture (ex. 'LGARMv7A' for AppOS built for EIC)
+    string hardwareModel = 2;     // AppOS Hardware Model (ex. 'EIC' for edge intelligence card)
+    string appOsModel = 3;        // AppOS Model (ex. 'LGRevelo' for Revelo meters)
+    string appOsVer = 4;          // AppOS Version
+    string hostOsVer = 5;         // Host Operating System Version
+    string hostHwVer = 6;         // Host Hardware Version
+}
+
+message AppAttributes {
+    int32 diskSpaceRequired = 1; // DO NOT USE.
+    int32 ramRequired = 2; // DO NOT USE.
+    int32 dailyDataTransfer = 3; // DO NOT USE.
+    AppAuthorization authStatus = 4;
+    google.protobuf.Timestamp createdDate = 5;
+    string hardwarePlatform = 6;
+    string minimumAppOsVersion = 7;
+    repeated AppPermissions permissions = 8;
+    uint32 disk_limit = 9; // DO NOT USE.
+    uint32 ram_limit = 10; // DO NOT USE.
+    uint32 net_limit = 11; // DO NOT USE.
+    uint32 cpu_limit = 12; // DO NOT USE.
+    landisgyr.appos.Cpu.Settings cpu_settings = 13;
+    landisgyr.appos.Ram.Settings ram_settings = 14;
+    landisgyr.appos.Net.Settings net_settings = 15;
+    landisgyr.appos.Fs.Settings fs_settings = 16;
+    repeated HostAttributes include_host_attributes = 17; // List of host attributes that are application compatible
+    repeated HostAttributes exclude_host_attributes = 18; // List of host attributes that are not application compatible
+}
+
+message AppData {
+    string uniqueId = 1;
+    string version = 2;
+    string platform = 3;
+    AppAttributes attributes = 4;
+}
+
+/*
+message UtilityData {
+    repeated AppPermissions revocation = 1;
+}
+*/

@@ -1,0 +1,384 @@
+syntax  = "proto3";
+
+//Definition of DSP engine command messages local to EIC & invisible to HES.
+//Version 2024-04-22
+
+package landisgyr.edge.dsp;
+option csharp_namespace = "LG.Edge.Dsp";
+option java_package = "com.landisgyr.edge.dsp";
+option java_outer_classname = "DspLocalProto";
+option objc_class_prefix = "LGGS";
+
+import "landisgyr/edge/dsp/dsp_block_defs.proto";
+import "landisgyr/edge/dsp/dsp_common.proto";
+
+/**
+ * DSP Engine LGIPC message for command/response/event.
+ */
+message DspLgipcMessage{
+  oneof kind{
+    landisgyr.edge.dsp.DspCommand cmd =1;
+    landisgyr.edge.dsp.DspResponse response =2;
+    landisgyr.edge.dsp.DspEvent event =3;
+  }
+}
+
+/**
+ * DSP Engine command sent to the DSP Engine.
+ */
+message DspCommand{
+  int32 correlation_id =15; //Mandatory, used by app to pair response with req.
+  oneof kind{
+    landisgyr.edge.dsp.UpdateBlockConfigReq update_cmd =1; //Generic response.
+    landisgyr.edge.dsp.RemoveBlockConfigReq remove_cmd =2; //Generic response.
+    landisgyr.edge.dsp.ReadBlockConfigReq read_cmd =3;
+    landisgyr.edge.dsp.GroupHashReq hash_cmd =4;
+    landisgyr.edge.dsp.BlockStatusReq status_read_cmd =5;
+    landisgyr.edge.dsp.SystemStatusReq system_read_cmd =6;
+    landisgyr.edge.dsp.DescriptorReadReq descriptor_read_cmd =7;
+    landisgyr.edge.dsp.DescriptorClearReq descriptor_clear_cmd =8; //Gen. rsp.
+    landisgyr.edge.dsp.AllocateReq allocation_cmd =9;
+    landisgyr.edge.dsp.GroupControlReq group_cmd =10; //Generic response.
+    landisgyr.edge.dsp.BlockControlReq block_cmd =11; //Generic response.
+    landisgyr.edge.dsp.CopyGroupConfigReq copy_cmd =12; //Generic response.
+    landisgyr.edge.dsp.InjectSampleReq sample_cmd =13; //Generic response.
+
+    //does group/block id of 0 need to be excluded as a valid value?
+    //check if omission of bool fields leads to undesirable outcome?
+    //Note: preloaded config can't be changed
+    //Note: there is no iterate command for a list of blocks, rather the hash
+    //command will report list of block IDs then each one is uniquely addressed
+  }
+}
+
+/**
+ * Command sent to the DSP Engine to add or update a block within the matrix.
+ */
+message UpdateBlockConfigReq{
+  repeated landisgyr.edge.dsp.FullBlockConfig blocks =1;
+}
+
+/**
+ * Remove DSP blocks from matrix.
+ */
+message RemoveBlockConfigReq{
+  repeated int32 block_ids =1;
+}
+
+/**
+ * Read DSP block config.
+ */
+message ReadBlockConfigReq{
+  repeated int32 block_ids =1;
+}
+
+/**
+ * Read DSP block config group hash.
+ */
+message GroupHashReq{
+  int32 group =1; //group ID
+  bool calculate_hash =2; //if true hash is reported in response
+  bool list_blocks =3; //if true a list of blocks is reported in response
+}
+
+/**
+ * Read DSP block status for specified series of DSP blocks.
+ */
+message BlockStatusReq{
+  repeated int32 blocks =1;
+}
+
+/**
+ * Read DSP Engine status.
+ */
+message SystemStatusReq{
+}
+
+/**
+ * Read DSP Descriptors.
+ */
+message DescriptorReadReq{
+  //list of descriptor DSP blocks to read
+  repeated int32 ids =1;
+  //optional, record sequence or timestamp, return 'more than or equal'
+  //if missing, return all except those excluded by 'last'
+  int64 first =2;
+  //optional, record sequence or timestamp, return 'less than or equal'
+  //if missing, return all except those excluded by 'first'
+  int64 last =3;
+  //if true first and last are timestamps rather than sequence numbers
+  //time is seconds since 1970 (posix)
+  bool is_timestamp =4;
+  //if true delete returned descriptors from queue
+  bool delete =5;
+  //if true provide array of RTC times with values
+  bool tell_times =6;
+  //if true provide array of sys sample numbers coincident with value.
+  bool tell_samples =7;
+}
+
+/**
+ * Delete DSP Descriptors.
+ */
+message DescriptorClearReq{
+  //list of descriptor DSP blocks to clear
+  repeated int32 ids =1;
+  //optional, record sequence or timestamp, clear 'more than or equal'
+  //if missing, clear all except those excluded by 'last'
+  int64 first =2;
+  //optional, record sequence or timestamp, clear 'less than or equal'
+  //if missing, clear all except those excluded by 'last'
+  int64 last =3;
+  //if true first and last are timestamps rather than sequence numbers
+  //time is seconds since 1970 (posix)
+  bool is_timestamp =4;
+}
+
+/**
+ * Allocate group and block ID range, prior allocation will be checked first.
+ */
+message AllocateReq{
+  //optional, prior allocated group ID
+  int32 group =1;
+  //optional, prior allocated base block
+  int32 base_block =2;
+  //required, desired # of blocks
+  int32 max_blocks =3;
+  //optional, true if allocation is for block common to multiple apps
+  bool is_common =4;
+  //optional, if true remove allocation for specified group ID & all its
+  //block config, status and descriptors.
+  bool deallocate =5;
+}
+
+/**
+ * Issue control command to a group.
+ */
+message GroupControlReq{
+  int32 group =1; //group ID
+  bool reset =2; //optional, if true reset state of all blocks in group
+  enum BlkEnable{
+    UNSPECIFIED =0; //desired state not specified, leave state unchanged
+    ENABLE =1; //enable group
+    DISABLE =2; //disable group
+  }
+  BlkEnable enable =3; //enable or disable signal processing in entire group
+}
+
+/**
+ * Issue control command to a block.
+ */
+message BlockControlReq{
+  //block ID
+  int32 id =1;
+  //reset block state, memory allocation and force reinitialisation based on
+  //config of the specified block, descriptor seq # not reset.
+  bool reset =2;
+}
+
+/**
+ * Duplicate configuration of an entire group.
+ */
+message CopyGroupConfigReq{
+  int32 src_group=1; //source group ID
+  int32 dest_group=2; //destination group ID obtained from prior allocate req.
+  int32 dest_base_block=3; //base block ID obtained from prior allocate req.
+}
+
+/**
+ * Inject a sample value into DSP engine block chain.
+ */
+ message InjectSampleReq{
+  int32 block_id =1; //block ID of a parser DSP block.
+  int64 trigger_timestamp =2; //RTC value when input shall be injected.
+  int64 trigger_sample_num =3; //sample # when input shall be injected.
+  bool continuous =4; //if true, value is reapplied continually once triggered.
+  repeated int32 values =5; //actual values to inject, one for each channel, max of 5 elements.
+}
+
+/**
+ * DSP Engine response to a command.
+ */
+message DspResponse{
+  int32 correlation_id =15; //Mandatory, used by app to pair response with req.
+  oneof kind{
+    landisgyr.edge.dsp.GenericRsp generic_response =1;
+    landisgyr.edge.dsp.BlockConfigRsp config =2;
+    landisgyr.edge.dsp.GroupHashRsp hash =3;
+    landisgyr.edge.dsp.BlockStatusRsp block_stat =4;
+    landisgyr.edge.dsp.SysStatus sys_stat =5;
+    landisgyr.edge.dsp.DescriptorRsp descriptors =6;
+    landisgyr.edge.dsp.AllocateRsp allocate_rsp =7;
+  }
+}
+
+/**
+ * DSP Engine generic response.
+ */
+message GenericRsp{
+  enum DspRspCode {
+    UNKNOWN =0;
+    OK = 1;
+    OK_ENABLED =2;
+    OK_DISABLED =3;
+    FAIL_GENERIC = 4;
+    FAIL_PERMISSION = 5;
+    FAIL_PARAM =6;
+    FAIL_BIG_PAYLOAD =7;
+  }
+  //pass/fail/status code
+  DspRspCode code =1;
+  //ID of thing in initial request, if request was for multiple then use ID of
+  //last in list. Useful for error logging, user can use correlation_id instead
+  int32 id =2;
+}
+
+/**
+ * DSP Engine block config read response.
+ */
+message BlockConfigRsp{
+  repeated landisgyr.edge.dsp.FullBlockConfig blocks =1; //block configs
+}
+
+/**
+ * DSP Engine block config group hash read response.
+ */
+message GroupHashRsp{
+  //Mandatory, group ID
+  int32 group =1;
+  //Optional, hash of all block config
+  fixed32 hash =2;
+  //Optional, list of block IDs that exist in this group, not ordered.
+  repeated int32 block_id_list=3;
+}
+
+/**
+ * Status info for an individual block read from DSP Engine & read/write to NV.
+ */
+message BlockStatus{
+  enum BlockStatusType{
+    UNKNOWN =0; //unknown block status type
+    PARSER =1; //companion to BlockCfgStreamParser
+    REF_WINDOW =2; //companion to BlockCfgRefWindow
+    DESCRIPTOR =3; //companion to BlockCfgDescriptor
+    SRC_IMPEDANCE =4; //companion to BlockCfgSrcImpedance
+    LINK =5; //companion to BlockCfgLink
+    AVERAGE =6; //companion to BlockCfgAverage
+    MIN_MAX =7; //companion to BlockCfgMinMax
+    NORMALISE =8; //companion to BlockCfgNormalise
+    SCALE =9; //companion to BlockCfgScale
+    BUFFER =10; //companion to BlockCfgBuffer
+    THRESHOLD =11; //companion to BlockCfgThreshold
+    RESAMPLE =12; //companion to BlockCfgResample
+    COUNTER =13; //companion to BlockCfgCounter
+    DELAY =14; //companion to BlockCfgDelay
+    PULSE =15; //companion to BlockCfgPulse
+    MATHBOX =16; //companion to BlockCfgMathBox
+    HISTOGRAM =17; //companion to BlockCfgHistogram
+    RING =18; //companion to BlockCfgRingDetect
+    FILTER =19; //companion to BlockCfgFilter
+    MERGE =20; //companion to BlockCfgMerge
+  }
+  //block ID
+  int32 id =1;
+  //true if block is enabled
+  bool enabled =2;
+  //type of DSP block
+  BlockStatusType type =3;
+  //No need to specify state info for app/HES since they shouldn't be accessing
+  //this directly. However to aid engine NV de/serialisation some other proto
+  //will fully define it
+  bytes payload =4;
+}
+
+/**
+ * DSP engine status info for series of blocks in response to read request.
+ */
+message BlockStatusRsp{
+  repeated landisgyr.edge.dsp.BlockStatus blocks =1;//status of blocks
+}
+
+/**
+ * Response message to descriptor read request.
+ */
+message DescriptorRsp{
+  message DescriptorBlk {
+    int32 id =1; //mandatory, id of descriptor DSP block
+    int32 sequence_base =2; //mandatory, sequence # of first descriptor
+    int64 time_first =3; //mandatory, RTC for first sample
+    int64 time_last =4; //mandatory, RTC for last sample
+    int64 sample_first =5; //mandatory, sample # for first sample
+    int64 sample_last =6; //mandatory, sample # for last sample
+    repeated int32 values =7; //mandatory, list of values
+    repeated int32 times =8; //optional, list of RTC times
+    repeated int32 sample_times =9; //optional, list of sample numbers
+  }
+  repeated DescriptorBlk descriptor_blocks=1;
+}
+
+/**
+ * Response message to allocate request.
+ */
+message AllocateRsp{
+  //mandatory, group that was allocated to app by DSP engine
+  int32 group =1;
+  //mandatory, base block that was allocated to app by DSP engine
+  int32 base_block =2;
+  //mandatory, max blocks allocated to app by DSP engine
+  int32 max_blocks =3;
+  //mandatory, true if allocation is for block common to multiple apps
+  bool is_common =4;
+}
+
+/**
+ * Asynchronous DSP Engine event.
+ */
+message DspEvent{
+  oneof kind{
+    landisgyr.edge.dsp.NewDescriptorEvent descriptor_event =1;
+    landisgyr.edge.dsp.ConfigChangedEvent config_event =2;
+    landisgyr.edge.dsp.StatusChangedEvent status_event =3;
+  }
+}
+
+/**
+ * DSP Engine event for newly generated descriptor.
+ */
+message NewDescriptorEvent{
+  int32 id =1; //id of descriptor DSP block
+  int32 sequence =2; //sequence # of descriptor
+  int64 timestamp =3; //time when this sample was processed, units of seconds.
+  int64 sample_idx =4; //underlying system sample # for this descriptor.
+  int32 value =5; //actual descriptor value
+}
+
+/**
+ * DSP Engine event for configuration change event.
+ */
+message ConfigChangedEvent{
+  repeated int32 block_id_list =1; //list of block ids that have been modified
+  //Optional, used by app to pair event with command that triggered condition.
+  int32 correlation_id =2;
+ }
+
+/**
+ * DSP Engine status change event (group on/off, block reset etc.).
+ */
+message StatusChangedEvent{
+  enum StatusType{
+    UNKNOWN =0;
+    GROUP_ENABLE =1;
+    GROUP_DISABLE =2;
+    BLOCK_RESET =3; //reset of individual block
+    GROUP_RESET =4; //reset of all blocks in group
+  }
+  //type of status message
+  StatusType type =1;
+  //ID of block/group/etc. that has changed
+  //Action on one block/group will have a cascading effect on many downstream
+  //blocks. For now there is no indication of the downstream blocks/groups
+  //impacted, in future a list of children could be provided.
+  int32 id =2;
+  //Optional, used by app to pair event with command that triggered condition.
+  int32 correlation_id =3;
+}

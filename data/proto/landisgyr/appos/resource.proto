@@ -1,0 +1,118 @@
+// Proto
+//
+// Copyright 2023 Landis+Gyr. All rights reserved.
+
+syntax = "proto3";
+
+package landisgyr.appos;
+
+option csharp_namespace = "LG.AppOSCodec.Common";
+option java_package = "com.landisgyr.appos";
+option java_outer_classname = "ResourceProto";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "landisgyr/protobuf/wrappers.proto";
+
+// Bandwidth parameters for controlling and reporting data rates
+message Bandwidth {
+    google.protobuf.Int32Value read = 1; // Input data rate (unit per period)
+    google.protobuf.Int32Value write = 2; // Output data rate (unit per period)
+    google.protobuf.Timestamp read_timestamp = 3; // Timestamp when read reading was taken
+    google.protobuf.Timestamp write_timestamp = 4; // Timestamp when write reading was taken
+}
+
+// CPU readings and settings
+message Cpu {
+    // CPU readings
+    message Readings {
+        google.protobuf.Int64Value usage = 1;
+        landisgyr.protobuf.UInt32ArrayValue usage_threshold_reached_counts = 2;
+        google.protobuf.Timestamp usage_timestamp = 3;
+    }
+    // CPU settings
+    message Settings {
+        landisgyr.protobuf.Int64ArrayValue usage_thresholds = 1;
+    }
+    Readings readings = 1;
+    Settings settings = 2;
+}
+
+// File system readings and settings
+message Fs {
+    // File system readings
+    message Readings {
+        google.protobuf.Int32Value opened_files = 1;
+        google.protobuf.Int64Value storage_size = 2;
+        landisgyr.appos.Bandwidth bandwidth_usage = 3;
+        google.protobuf.UInt32Value max_storage_size_reached_count = 4;
+        google.protobuf.UInt32Value max_opened_files_reached_count = 5;
+        google.protobuf.UInt32Value opened_file_denied_count = 6;
+        google.protobuf.UInt32Value read_file_denied_count = 7;
+        google.protobuf.UInt32Value write_file_denied_count = 8;
+    }
+    // File system settings
+    message Settings {
+        google.protobuf.Int32Value opened_files_limit = 1;
+        google.protobuf.Int64Value storage_size_limit = 2;
+        landisgyr.appos.Bandwidth bandwidth_limit = 3;
+    }
+    Readings readings = 1;
+    Settings settings = 2;
+}
+
+// Network readings and settings
+message Net {
+    // Parameters for defining a subnetwork
+    //
+    // Examples in CIDR notation:
+    //   1. "::0/0" defines all IPv6 addresses
+    //   2. "0.0.0.0/0" defines all IPv4 address
+    message Subnet {
+        oneof form {
+            string cidr = 1;
+        }
+    }
+    // Network bandwidth definition
+    message Bandwidth {
+        landisgyr.appos.Net.Subnet subnet = 1;
+        landisgyr.appos.Bandwidth bandwidth = 2;
+        google.protobuf.StringValue comms_profile = 3;
+        google.protobuf.UInt32Value read_socket_denied_count = 4;
+        google.protobuf.UInt32Value write_socket_denied_count = 5;
+    }
+    // Network readings
+    message Readings {
+        google.protobuf.Int32Value opened_connections = 1;
+        repeated landisgyr.appos.Net.Bandwidth bandwidth_usages = 2;
+        google.protobuf.UInt32Value opened_connections_limit_reached_count = 3;
+        google.protobuf.UInt32Value open_connection_denied_count = 4;
+        reserved 5, 6;
+    }
+    // Network settings
+    message Settings {
+        google.protobuf.Int32Value opened_connections_limit = 1;
+        repeated landisgyr.appos.Net.Bandwidth bandwidth_limits = 2;
+    }
+    Readings readings = 1;
+    Settings settings = 2;
+}
+
+// RAM readings and settings parameters
+message Ram {
+    // RAM readings
+    message Readings {
+        google.protobuf.Int64Value usage = 1;
+        landisgyr.protobuf.UInt32ArrayValue usage_threshold_reached_counts = 2;
+        google.protobuf.Timestamp usage_timestamp = 3;
+        google.protobuf.Int64Value memory_limit = 4;  // Current limit for maximum amount of memory heap that can be allocated to an application (in bytes).  If unset, no limit is applied.
+    }
+    // RAM settings
+    message Settings {
+        landisgyr.protobuf.Int64ArrayValue usage_thresholds = 1;
+        google.protobuf.Int64Value memory_limit = 2;  // Declared limit for maximum amount of memory heap that can be allocated to an application (in bytes).  If unset, no limit will be applied.
+    }
+    Readings readings = 1;
+    Settings settings = 2;
+}
