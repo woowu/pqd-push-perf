@@ -7,12 +7,13 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import hexdump from 'hexdump-nodejs';
 import protobuf from 'protobufjs';
+import moment from 'moment';
 
 var DataMsgType;
 
 function decodeProtobuf(buf)
 {
-    console.log(DataMsgType.decode(buf));
+    return DataMsgType.decode(buf);
 }
 
 function detectDataBotPostEvent(log)
@@ -64,24 +65,45 @@ function detectDataBotPostEvent(log)
     const tmp = payload.slice(5, 9); 
     const ctrl = tmp[3];
     tmp[3] = 0;
-    msgId = payload.readUint32LE(0) >> 8;
+    msgId = payload.readUint32BE(0) >> 8;
     return {
-        type: 'databot-post',
+        lineNo: log.lineNo,
+        timestamp: log.timestamp,
+        type: 'p', // databot-post
         senderAddr: { ip: srcIp, port: srcPort },
         devId,
         encrypted: (ctrl & 1) == 0,
         singed: (ctrl & 2) != 0,
         hasHmac: (ctrl & 4) != 0,
         msgId,
+        reqId,
     };
     return null;
 }
 
+function detectProcDataMsgAsync(log)
+{
+    const procDataMsgAsyncPat = 'Inside ProcessDataAsync';
+    const lines = log.msg.split('\n');
+    var ma;
+
+    if (log.msg.search(procDataMsgAsyncPat) < 0)
+        return null;
+    if (lines.length < 2) return null;
+    ma = lines[1].match(/Message ID : ([0-9.]+)/);
+    if (!ma) return null;
+    return {
+        lineNo: log.lineNo,
+        timestamp: log.timestamp,
+        type: '_procDataMsgAsync',
+        reqId: parseInt(ma[1]),
+    };
+}
+ 
 function detectDataMsgEvent(log)
 {
     const dataMsgPat = 'DataBot_DataMsg.NodeID : ';
     var pos;
-    var ma;
     var devId;
     var str;
 
@@ -103,44 +125,31 @@ function detectDataMsgEvent(log)
     }
     str = lines[1].slice(pos + 'DataBot_DataMsg : '.length);
     try {
-        const dataMsg = JSON.parse(str);
+        const msg = JSON.parse(str);
+        msg.dataTransport.appData[0].payloadBytes
+            = decodeProtobuf(Buffer.from(
+                msg.dataTransport.appData[0].payloadBytes, 'base64'));
         return {
-            type: 'data-msg',
+            lineNo: log.lineNo,
+            timestamp: log.timestamp,
+            type: 'd', // data-msg
             devId,
-            msg: dataMsg,
+            msg,
         };
     } catch (e) {
-        console.error('Invalid DataMsg:', str);
+        console.error('Invalid DataMsg:', log.msg);
     }
     return null;
 }
 
-function detectEvent(state, log)
+function detectEvent(log)
 {
-    var e;
+    var e = null;
 
-    if ((e = detectDataBotPostEvent(log))
-        || (e = detectDataMsgEvent(log))) {
-        console.log(e);
-        if (! state.lastEvent) {
-            return { ...state, lastEvent: e };
-        if (e.type == 'data-post' && state.lastEvent.type != 'data-msg') {
-            console.error('Event order mismatched, possibly a databot post is not processed');
-            console.log(log);
-            return state;
-        }
-        if (e.type == 'data-msg') {
-            const dataMsg = decodeProtobuf(Buffer.from(
-                e.msg.dataTransport.appData[0].payloadBytes, 'base64'));
-        }
-    }
-    return state;
-}
-
-async function onLog(state, log)
-{
-    console.log(log.lineNo + ':', log.timestamp, log.msg);
-    return detectEvent(state, log);
+    (e = detectDataBotPostEvent(log))
+        || (e = detectDataMsgEvent(log))
+        || (e = detectProcDataMsgAsync(log))
+    return e;
 }
 
 function loadDataMsgType()
@@ -157,7 +166,7 @@ function loadDataMsgType()
     });
 }
 
-async function scanAppMgrLog(filename)
+async function scanAppMgrLog(filename, devId)
 {
     const rl = createInterface({
         input: createReadStream(filename),
@@ -165,26 +174,69 @@ async function scanAppMgrLog(filename)
     var lineNo = 0;
     var lineNoBegin;
     var partial = [];
-    var state = {};
+    var events = [];
+    var reqId = -1;
 
     for await (const line of rl) {
         ++lineNo;
         if (!line.search(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3}\s/)) {
             if (partial.length) {
                 const parts = partial[0].split(/ - /);
-                state = onLog(state, {
+                const timestamp = moment('2026-03-31 06:33:10,350'
+                    , 'YYYY-MM-DD hh:mm:ss,SSS', true);
+                const e = detectEvent({
                     lineNo: lineNoBegin,
-                    timestamp: parts[0],
+                    timestamp,
                     msg: [parts[11], ...partial.slice(1)].join('\n').trim(),
                 });
+                if (e) {
+                    //console.log(e);
+                    if (e.type == '_procDataMsgAsync') {
+                        reqId = e.reqId;
+                    } else if (e.type == 'd') {
+                        if (e.devId == devId) events.push({...e, reqId});
+                        reqId = null;
+                    } else if (e.devId == devId) {
+                        events.push({...e});
+                    }
+                }
             }
             partial = [line];
             lineNoBegin = lineNo;
         } else
             partial.push(line);
     }
+    return events;
 }
 
+function calcDataMsgTiming(events)
+{
+    const sane = [];
+
+    for (let i = 0; i < events.length; ++i) {
+        const e = events[i];
+        if (!i) {
+            sane.push(e);
+            continue;
+        }
+        const prev = events[i-1];
+        //if (e.type == 'p' && prev.type == 'p')
+    }
+}
+
+const argv = yargs(hideBin(process.argv))
+    .usage('Usage: $0 -i dev-id logfile')
+    .help()
+    .option('i', {
+        alias: 'dev-id',
+        type: 'number',
+        nargs: 1,
+        describe: 'device ID (serial number)',
+        demandOption: true,
+    })
+    .alias('h', 'help')
+    .parse();
+
 DataMsgType = await loadDataMsgType();
-const argv = yargs(hideBin(process.argv)).parse();
-await scanAppMgrLog(argv._[0]);
+const events = await scanAppMgrLog(argv._[0], argv.devId);
+console.log(JSON.stringify(events, null, 2));
