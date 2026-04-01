@@ -69,7 +69,7 @@ function detectDataBotPostEvent(log)
     return {
         lineNo: log.lineNo,
         timestamp: log.timestamp,
-        type: 'p', // databot-post
+        type: 'databot-post',
         senderAddr: { ip: srcIp, port: srcPort },
         devId,
         encrypted: (ctrl & 1) == 0,
@@ -78,7 +78,6 @@ function detectDataBotPostEvent(log)
         msgId,
         reqId,
     };
-    return null;
 }
 
 function detectProcDataMsgAsync(log)
@@ -132,7 +131,7 @@ function detectDataMsgEvent(log)
         return {
             lineNo: log.lineNo,
             timestamp: log.timestamp,
-            type: 'd', // data-msg
+            type: 'data-msg',
             devId,
             msg,
         };
@@ -166,7 +165,7 @@ function loadDataMsgType()
     });
 }
 
-async function scanAppMgrLog(filename, devId)
+async function scanAppMgrLog(filename, devId, timezone)
 {
     const rl = createInterface({
         input: createReadStream(filename),
@@ -182,8 +181,8 @@ async function scanAppMgrLog(filename, devId)
         if (!line.search(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3}\s/)) {
             if (partial.length) {
                 const parts = partial[0].split(/ - /);
-                const timestamp = moment('2026-03-31 06:33:10,350'
-                    , 'YYYY-MM-DD hh:mm:ss,SSS', true);
+                const timestamp = moment(parts[0] + ' ' + timezone
+                    , 'YYYY-MM-DD hh:mm:ss,SSS ZZ', true);
                 const e = detectEvent({
                     lineNo: lineNoBegin,
                     timestamp,
@@ -234,9 +233,17 @@ const argv = yargs(hideBin(process.argv))
         describe: 'device ID (serial number)',
         demandOption: true,
     })
+    .option('z', {
+        alias: 'timezone',
+        type: 'string',
+        nargs: 1,
+        describe: 'timezone of time in log file, e.g., +1100',
+        demandOption: true,
+    })
     .alias('h', 'help')
     .parse();
 
 DataMsgType = await loadDataMsgType();
-const events = await scanAppMgrLog(argv._[0], argv.devId);
-console.log(JSON.stringify(events, null, 2));
+const events = await scanAppMgrLog(argv._[0], argv.devId, argv.timezone);
+fs.writeFile(`event-seq-${argv.devId}.json`, JSON.stringify(events, null, 2),
+    err => {});
