@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "hexdump-nodejs": "^0.1.0",
     "protobufjs": "^8.0.0",
     "yargs": "^18.0.0"
   }
