@@ -292,7 +292,7 @@ function writeTimingCsv(dataMsgList, filename)
 {
     const csv = fs.createWriteStream(filename);
 
-    csv.write('Seqno,LogLine,EndRecvTime,CommDelay,ProcDealy\n');
+    csv.write('Seqno,LogLine,EndRecvTime,CommDelay,ProcDelay\n');
     for (const d of dataMsgList) {
         const pqd = d.msg.dataTransport.appData[0].payloadBytes;
         csv.write(`${pqd.seqNum},${d.lineNo},`
