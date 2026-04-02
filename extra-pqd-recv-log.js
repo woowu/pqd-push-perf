@@ -3,11 +3,16 @@
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import hexdump from 'hexdump-nodejs';
 import protobuf from 'protobufjs';
 import moment from 'moment';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 var DataMsgType;
 var timezone;       // E.g., +1100
@@ -171,14 +176,15 @@ function detectEvent(log, devId)
 function loadDataMsgType()
 {
     return new Promise((resolve, reject) => {
-        protobuf.load('./meter-power-quality.json', (err, root) => {
-            if (err) return reject(new Error(err));
-            try {
-                resolve(root.lookupType('landisgyr.protobuf.PowerQualityData'));
-            } catch (e) {
-                reject(e.message);
-            }
-        });
+        protobuf.load(path.join(__dirname, 'meter-power-quality.json')
+            , (err, root) => {
+                if (err) return reject(new Error(err));
+                try {
+                    resolve(root.lookupType('landisgyr.protobuf.PowerQualityData'));
+                } catch (e) {
+                    reject(e.message);
+                }
+            });
     });
 }
 
@@ -292,10 +298,10 @@ function writeTimingCsv(dataMsgList, filename)
 {
     const csv = fs.createWriteStream(filename);
 
-    csv.write('Seqno,LogLine,EndRecvTime,CommDelay,ProcDelay\n');
+    csv.write('DevId,Seqno,LogLine,EndRecvTime,CommDelay,ProcDelay\n');
     for (const d of dataMsgList) {
         const pqd = d.msg.dataTransport.appData[0].payloadBytes;
-        csv.write(`${pqd.seqNum},${d.lineNo},`
+        csv.write(`${d.devId},${pqd.seqNum},${d.lineNo},`
             + `${d.timestamp.valueOf()},${d.commDelay},${d.procDelay}\n`);
     }
     csv.end();
