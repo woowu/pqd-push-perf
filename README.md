@@ -47,17 +47,17 @@ $ ../plot.R data-timing-1373892682.csv
 
 Four plots (png files) will be generated:
 
-- data-seqno-<dev-id>.png: Derivative of seqno of all the processed data points. This is used 
-  to detect data lost.  When push period is 5 second, the seqno difference
-  should be 5 in normal case without lossing.
-- comm-delay-<dev-id>.png: Communication delays calculatedc by substract the
-  time a data point was sent from the meter to the time which was processed by
-  the receiver. This delay unfortunately also encodes the clock difference
-  between the sender and the receiver because we currently don't add sender time
-  in the PQD.
-- comm-delay-norm-<dev-id>.png: Similar to the above expect the delay times were
-  substract by the minimum delay time found in the data set. This can elimites
-  the clock difference mentioned above but it also elimilates the fixed
+- data-seqno-<dev-id>.png: Derivative of seqno of all the processed data points.
+  This is used to detect data lost.  When push period is 5 second, the seqno
+  difference should be 5 in normal case without lossing.
+- comm-delay-<dev-id>.png: Communication delays calculatedc by substracting the
+  time a data point was sent from the meter from the time it was received by the
+  receiver. This delay unfortunately also encodes the clock difference between
+  the sender and the receiver because we currently don't add sender time in the
+  PQD.
+- comm-delay-norm-<dev-id>.png: Similar to the above expect that the delay times
+  were substracted with the minimum delay time found in the data set. This can
+  elimites the clock difference mentioned above but it also elimilates the fixed
   delay component in the communication channel.
-- proc-delay-<dev-id>.png: This is delay times of receiver spent for decrypting
+- proc-delay-<dev-id>.png: This is delay times of receiver spending for decrypting
   and processing the received raw data.
