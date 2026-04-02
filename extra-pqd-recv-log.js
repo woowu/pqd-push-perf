@@ -16,7 +16,7 @@ function decodeProtobuf(buf)
     return DataMsgType.decode(buf);
 }
 
-function detectDataBotPostEvent(log)
+function detectDataBotPostEvent(log, opts)
 {
     const dataBotPostPat = 'Received SecureDatabotResource DoPost: Request ID:';
     var pos;
@@ -62,6 +62,7 @@ function detectDataBotPostEvent(log)
         return null;
     }
     devId = payload.readUint32BE(1);
+    if (devId != opts.devId) return null;
     const tmp = payload.slice(5, 9); 
     const ctrl = tmp[3];
     tmp[3] = 0;
@@ -80,7 +81,7 @@ function detectDataBotPostEvent(log)
     };
 }
 
-function detectProcDataMsgAsync(log)
+function detectProcDataMsgAsync(log, opts)
 {
     const procDataMsgAsyncPat = 'Inside ProcessDataAsync';
     const lines = log.msg.split('\n');
@@ -99,7 +100,7 @@ function detectProcDataMsgAsync(log)
     };
 }
  
-function detectDataMsgEvent(log)
+function detectDataMsgEvent(log, opts)
 {
     const dataMsgPat = 'DataBot_DataMsg.NodeID : ';
     var pos;
@@ -111,6 +112,7 @@ function detectDataMsgEvent(log)
 
     const lines = log.msg.split('\n');
     devId = parseInt(lines[0].slice(pos + dataMsgPat.length), 16);
+    if (devId != opts.devId) return null;
     if (lines.length < 2) {
         console.error(`No enough log in message-proc info [${log.lineNo}]:`
             , log.msg);
@@ -141,13 +143,13 @@ function detectDataMsgEvent(log)
     return null;
 }
 
-function detectEvent(log)
+function detectEvent(log, devId)
 {
     var e = null;
 
-    (e = detectDataBotPostEvent(log))
-        || (e = detectDataMsgEvent(log))
-        || (e = detectProcDataMsgAsync(log))
+    (e = detectDataBotPostEvent(log, { devId }))
+        || (e = detectDataMsgEvent(log, { devId }))
+        || (e = detectProcDataMsgAsync(log, { devId }))
     return e;
 }
 
@@ -187,15 +189,15 @@ async function scanAppMgrLog(filename, devId, timezone)
                     lineNo: lineNoBegin,
                     timestamp,
                     msg: [parts[11], ...partial.slice(1)].join('\n').trim(),
-                });
+                }, devId);
                 if (e) {
                     //console.log(e);
                     if (e.type == '_procDataMsgAsync') {
                         reqId = e.reqId;
-                    } else if (e.type == 'd') {
-                        if (e.devId == devId) events.push({...e, reqId});
+                    } else if (e.type == 'data-msg') {
+                        events.push({...e, reqId});
                         reqId = null;
-                    } else if (e.devId == devId) {
+                    } else {
                         events.push({...e});
                     }
                 }
@@ -219,7 +221,6 @@ function calcDataMsgTiming(events)
             continue;
         }
         const prev = events[i-1];
-        //if (e.type == 'p' && prev.type == 'p')
     }
 }
 
