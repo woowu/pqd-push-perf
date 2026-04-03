@@ -11,7 +11,9 @@ plot_cap <- paste(c('Device: ', dev_id), collapse='')
 plot_seqno <- function(d) {
     dd <- d;
 
-    p <- ggplot(dd, aes(x=as.POSIXct(as.numeric(EndRecvTime/1000, tz='GMT')), 
+    p <- ggplot(dd, aes(x=as.POSIXct(as.numeric(RecvTime/1000
+                                                , origin='1970-01-01'
+                                                , tz='GMT')), 
                         y=Seqno)) +
         geom_line() +
         labs(x='Time', y='Seqno',

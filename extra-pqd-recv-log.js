@@ -15,8 +15,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 var DataMsgType;
-var timezone;       // E.g., +1100
-var timezoneMs;     // to substract from a local time
 
 function timezoneToMsAdj(timezone)
 {
@@ -204,7 +202,7 @@ async function scanAppMgrLog(filename, devId)
         if (!line.search(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3}\s/)) {
             if (partial.length) {
                 const parts = partial[0].split(/ - /);
-                const timestamp = moment(parts[0] + ' ' + timezone
+                const timestamp = moment(parts[0] + ' ' + '+0000'
                     , 'YYYY-MM-DD hh:mm:ss,SSS ZZ', true);
                 const e = detectEvent({
                     lineNo: lineNoBegin,
@@ -269,7 +267,7 @@ function amendRecvTimeForDataMsg(events)
             }
             if (p == undefined) { // orphan data-msg
                 console.log('Oprph data-msg w/o recv log being found:', e);
-                amended.push({ ...e, recvTime: null });
+                amended.push({ ...e, recvTime: e.timestamp });
             }
             post = [...post, ...post_right];
         }
@@ -284,14 +282,13 @@ function calcDelays(dataMsgList)
 
     for (const d of dataMsgList) {
         const pqd = d.msg.dataTransport.appData[0].payloadBytes;
-        const senderLocalTime = parseInt(pqd.timestamp.seconds) * 1e3
+        const senderTime = parseInt(pqd.timestamp.seconds) * 1e3
             + parseInt(pqd.timestamp.nanos/1e6);
-        const senderTime = senderLocalTime - timezoneMs;
-        const procDelay = (d.recvTime != null) ? d.timestamp - d.recvTime
-            : 0;
-        const commDelay = d.recvTime != null ?
-            d.recvTime.valueOf() - senderTime :
-            d.timestamp - senderTime;
+        const procDelay = /*(d.recvTime != null) ?*/ d.timestamp - d.recvTime
+            /*: 0*/;
+        const commDelay = /*d.recvTime != null ?*/
+            d.recvTime.valueOf() - senderTime /*:
+            d.timestamp - senderTime*/;
         amended.push({ ...d, procDelay, commDelay });
     }
     return amended;
@@ -301,11 +298,11 @@ function writeTimingCsv(dataMsgList, filename)
 {
     const csv = fs.createWriteStream(filename);
 
-    csv.write('DevId,Seqno,LogLine,EndRecvTime,CommDelay,ProcDelay\n');
+    csv.write('DevId,Seqno,LogLine,RecvTime,CommDelay,ProcDelay\n');
     for (const d of dataMsgList) {
         const pqd = d.msg.dataTransport.appData[0].payloadBytes;
         csv.write(`${d.devId},${pqd.seqNum},${d.lineNo},`
-            + `${d.timestamp.valueOf()},${d.commDelay},${d.procDelay}\n`);
+            + `${d.recvTime.valueOf()},${d.commDelay},${d.procDelay}\n`);
     }
     csv.end();
 }
@@ -320,22 +317,8 @@ const argv = yargs(hideBin(process.argv))
         describe: 'device ID (serial number)',
         demandOption: true,
     })
-    .option('z', {
-        alias: 'timezone',
-        type: 'string',
-        nargs: 1,
-        describe: 'timezone of time in log file, e.g., +1100',
-        demandOption: true,
-    })
     .alias('h', 'help')
     .parse();
-
-timezone = argv.timezone;
-timezoneMs = timezoneToMsAdj(timezone);
-if (timezoneMs == null) {
-    console.error('Bad timezone format.');
-    process.exit(1);
-}
 
 DataMsgType = await loadDataMsgType();
 const events = await scanAppMgrLog(argv._[0], argv.devId);
@@ -343,7 +326,7 @@ fs.writeFile(`event-seq-${argv.devId}.json`, JSON.stringify(events, null, 2),
     err => {});
 var { dataMsg, orphanPost } = amendRecvTimeForDataMsg(events);
 console.log(`Total ${dataMsg.length} data-msg;`
-    + `${orphanPost.length} orpan post received by not processed`);
+    + ` ${orphanPost.length} orpan post received by not processed`);
 dataMsg = calcDelays(dataMsg);
 fs.writeFile(`data-msg-${argv.devId}.json`, JSON.stringify(dataMsg, null, 2),
     err => {});
