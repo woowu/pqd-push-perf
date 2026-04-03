@@ -47,9 +47,11 @@ $ ../plot.R data-timing-1373892682.csv
 
 Four plots (png files) will be generated:
 
-- data-seqno-<dev-id>.png: Derivative of seqno of all the processed data points.
-  This is used to detect data lost.  When push period is 5 second, the seqno
-  difference should be 5 in normal case without lossing.
+- data-seqno-<dev-id>.png: Received PQD seqno over time. This is a way to
+  view the communcation halting and data losting.
+- data-seqno-der-<dev-id>.png: Derivative of seqno of all the processed data
+  points.  This is another way to detect data lost.  When push period is 5
+  second, the seqno difference should be 5 in normal case without lossing.
 - comm-delay-<dev-id>.png: Communication delays calculatedc by substracting the
   time a data point was sent from the meter from the time it was received by the
   receiver. This delay unfortunately also encodes the clock difference between

@@ -10,6 +10,15 @@ plot_cap <- paste(c('Device: ', dev_id), collapse='')
 
 plot_seqno <- function(d) {
     dd <- d;
+
+    p <- ggplot(dd, aes(x=as.POSIXct(as.numeric(EndRecvTime/1000, tz='GMT')), 
+                        y=Seqno)) +
+        geom_line() +
+        labs(x='Time', y='Seqno',
+            title='Seqno received vs time',
+            caption=plot_cap)
+    ggsave(paste(c('data-seqno-', dev_id, '.png'), collapse=''), p);
+
     dd$DiffSeqno <- c(0, diff(d$Seqno))
     dd <- dd %>% tail(nrow(dd) - 1)
     p <- ggplot(dd, aes(x=as.numeric(row.names(dd)) + 1, 
@@ -18,7 +27,7 @@ plot_seqno <- function(d) {
         labs(x='', y='Seqno',
             title='Derivateive of Seqno of consecutively received data',
             caption=plot_cap)
-    ggsave(paste(c('data-seqno-', dev_id, '.png'), collapse=''), p);
+    ggsave(paste(c('data-seqno-der-', dev_id, '.png'), collapse=''), p);
 }
 
 plot_proc_delay <- function(d) {
