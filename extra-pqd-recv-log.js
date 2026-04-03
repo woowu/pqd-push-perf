@@ -307,6 +307,21 @@ function writeTimingCsv(dataMsgList, filename)
     csv.end();
 }
 
+function printSummary(dataMsgList)
+{
+    var outOfOrder = 0;
+    var repeated  = 0;
+    var seqnoHist = [];
+
+    for (const d of dataMsgList) {
+        const seqno = d.msg.dataTransport.appData[0].payloadBytes.seqNum;
+        if (sesqnoHist.includes(seqno))
+            ++repeated;
+        else
+            seqnoHist.push(seqno);
+    }
+}
+
 const argv = yargs(hideBin(process.argv))
     .usage('Usage: $0 -i dev-id logfile')
     .help()
@@ -331,3 +346,4 @@ dataMsg = calcDelays(dataMsg);
 fs.writeFile(`data-msg-${argv.devId}.json`, JSON.stringify(dataMsg, null, 2),
     err => {});
 writeTimingCsv(dataMsg, `data-timing-${argv.devId}.csv`);
+printSummary(dataMsg);
