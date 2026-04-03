@@ -268,6 +268,7 @@ function amendRecvTimeForDataMsg(events)
                 p = post.pop();
             }
             if (p == undefined) { // orphan data-msg
+                console.log('Oprph data-msg w/o recv log being found:', e);
                 amended.push({ ...e, recvTime: null });
             }
             post = [...post, ...post_right];
@@ -287,8 +288,10 @@ function calcDelays(dataMsgList)
             + parseInt(pqd.timestamp.nanos/1e6);
         const senderTime = senderLocalTime - timezoneMs;
         const procDelay = (d.recvTime != null) ? d.timestamp - d.recvTime
-            : Infinity;
-        const commDelay = d.recvTime.valueOf() - senderTime;
+            : 0;
+        const commDelay = d.recvTime != null ?
+            d.recvTime.valueOf() - senderTime :
+            d.timestamp - senderTime;
         amended.push({ ...d, procDelay, commDelay });
     }
     return amended;
