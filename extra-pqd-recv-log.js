@@ -16,6 +16,13 @@ const __dirname = path.dirname(__filename);
 
 var DataMsgType;
 
+function seqnoDiff(a, b)
+{
+    const range = 2**32;
+    var n = (a + (range - b)) % range;
+    return n >= range/2 ? -(range - n) : n;
+}
+
 function timezoneToMsAdj(timezone)
 {
     var hh, mm;
@@ -307,19 +314,52 @@ function writeTimingCsv(dataMsgList, filename)
     csv.end();
 }
 
-function printSummary(dataMsgList)
+function summary(dataMsgs, orphanPosts, filename)
 {
-    var outOfOrder = 0;
     var repeated  = 0;
-    var seqnoHist = [];
+    var distinct = [];
+    var periods = [];
+    var periodMean;
+    var timeFirst = null;
+    var timeLast = null;
 
-    for (const d of dataMsgList) {
+    var timePrev = null;
+    for (const d of dataMsgs) {
         const seqno = d.msg.dataTransport.appData[0].payloadBytes.seqNum;
-        if (sesqnoHist.includes(seqno))
+        if (distinct.includes(seqno)) {
             ++repeated;
-        else
-            seqnoHist.push(seqno);
+            continue;
+        }
+        distinct.push(seqno);
+
+        if (timePrev != null)
+            periods.push(d.timestamp - timePrev);
+        timePrev = d.timestamp;
+
+        if (timeFirst == null) timeFirst = d.timestamp;
+        timeLast = d.timestamp;
     }
+
+    var outOfOrder = 0;
+    var i = 0;
+    while (i < distinct.length - 1) {
+        if (seqnoDiff(distinct[i+1], distinct[i]) < 0)
+            ++outOfOrder;
+        ++i;
+    }
+
+    periodMean = periods.reduce((acc, val) => acc + val, 0)/periods.length;
+
+    const report = fs.createWriteStream(filename);
+    report.write(`Processed ${distinct.length} distinct data point(s) from`
+        + ` ${timeFirst} to ${timeLast};\n`
+        + `\t${outOfOrder} of them out of order;\n`
+        + `\t${repeated} repeated points\n\n`);
+    report.write('Data period (seconds):\n');
+    report.write(`\tMean ${periodMean.toFixed(3)}`
+        + `\n\tMax ${Math.max(...periods).toFixed(3)}`
+        + `\n\tMin ${Math.min(...periods).toFixed(3)}\n`);
+    report.end();
 }
 
 const argv = yargs(hideBin(process.argv))
@@ -346,4 +386,4 @@ dataMsg = calcDelays(dataMsg);
 fs.writeFile(`data-msg-${argv.devId}.json`, JSON.stringify(dataMsg, null, 2),
     err => {});
 writeTimingCsv(dataMsg, `data-timing-${argv.devId}.csv`);
-printSummary(dataMsg);
+summary(dataMsg, orphanPost, `summary-${argv.devId}.txt`);
