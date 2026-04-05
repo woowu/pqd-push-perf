@@ -339,6 +339,8 @@ const argv = yargs(hideBin(process.argv))
         demandOption: true,
     })
     .alias('h', 'help')
+    .alias('v', 'version')
+    .version('0.2.0')
     .parse();
 
 DataMsgType = await loadDataMsgType();
