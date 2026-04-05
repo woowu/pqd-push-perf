@@ -255,6 +255,7 @@ function amendRecvTimeForDataMsg(events)
     const proc = [];
     const amended = [];
     var post = [];
+    var orphanDataMsg = [];
 
     for (const e of events) {
         if (e.type == 'databot-post') {
@@ -272,11 +273,24 @@ function amendRecvTimeForDataMsg(events)
                 post_right.unshift(p);
                 p = post.pop();
             }
-            if (p == undefined) { // orphan data-msg
-                console.log('Oprph data-msg w/o recv log being found:', e);
+            if (p == undefined) {
+                orphanDataMsg.push(e);
                 amended.push({ ...e, recvTime: e.timestamp });
             }
             post = [...post, ...post_right];
+        }
+    }
+    if (orphanDataMsg.length) {
+        console.warn(`Found ${post.length} orphan data-msg w/o data-post:`);
+        for (const p of orphanDataMsg) {
+            console.warng(JSON.stringyfy(p, null, 2));
+        }
+    }
+    if (post.length) {
+        console.warn(`Found ${post.length} orphan data-post`
+            + ` not been processed:`);
+        for (const p of post) {
+            console.warng(JSON.stringyfy(p, null, 2));
         }
     }
     return { dataMsg: amended, orphanPost: post };
@@ -293,10 +307,10 @@ function calcDelays(dataMsgList)
             + parseInt(pqd.timestamp.nanos/1e6);
         const procDelay = /*(d.recvTime != null) ?*/ d.timestamp - d.recvTime
             /*: 0*/;
-        const commDelay = /*d.recvTime != null ?*/
+        const travelDelay = /*d.recvTime != null ?*/
             d.recvTime.valueOf() - senderTime /*:
             d.timestamp - senderTime*/;
-        amended.push({ ...d, procDelay, commDelay });
+        amended.push({ ...d, procDelay, travelDelay });
     }
     return amended;
 }
@@ -305,61 +319,13 @@ function writeTimingCsv(dataMsgList, filename)
 {
     const csv = fs.createWriteStream(filename);
 
-    csv.write('DevId,Seqno,LogLine,RecvTime,CommDelay,ProcDelay\n');
+    csv.write('DevId,Seqno,LogLine,RecvTime,TravelDelay,ProcDelay\n');
     for (const d of dataMsgList) {
         const pqd = d.msg.dataTransport.appData[0].payloadBytes;
         csv.write(`${d.devId},${pqd.seqNum},${d.lineNo},`
-            + `${d.recvTime.valueOf()},${d.commDelay},${d.procDelay}\n`);
+            + `${d.recvTime.valueOf()},${d.travelDelay},${d.procDelay}\n`);
     }
     csv.end();
-}
-
-function summary(dataMsgs, orphanPosts, filename)
-{
-    var repeated  = 0;
-    var distinct = [];
-    var periods = [];
-    var periodMean;
-    var timeFirst = null;
-    var timeLast = null;
-
-    var timePrev = null;
-    for (const d of dataMsgs) {
-        const seqno = d.msg.dataTransport.appData[0].payloadBytes.seqNum;
-        if (distinct.includes(seqno)) {
-            ++repeated;
-            continue;
-        }
-        distinct.push(seqno);
-
-        if (timePrev != null)
-            periods.push(d.timestamp - timePrev);
-        timePrev = d.timestamp;
-
-        if (timeFirst == null) timeFirst = d.timestamp;
-        timeLast = d.timestamp;
-    }
-
-    var outOfOrder = 0;
-    var i = 0;
-    while (i < distinct.length - 1) {
-        if (seqnoDiff(distinct[i+1], distinct[i]) < 0)
-            ++outOfOrder;
-        ++i;
-    }
-
-    periodMean = periods.reduce((acc, val) => acc + val, 0)/periods.length;
-
-    const report = fs.createWriteStream(filename);
-    report.write(`Processed ${distinct.length} distinct data point(s) from`
-        + ` ${timeFirst} to ${timeLast};\n`
-        + `\t${outOfOrder} of them out of order;\n`
-        + `\t${repeated} repeated points\n\n`);
-    report.write('Data period (seconds):\n');
-    report.write(`\tMean ${periodMean.toFixed(3)}`
-        + `\n\tMax ${Math.max(...periods).toFixed(3)}`
-        + `\n\tMin ${Math.min(...periods).toFixed(3)}\n`);
-    report.end();
 }
 
 const argv = yargs(hideBin(process.argv))
@@ -380,10 +346,7 @@ const events = await scanAppMgrLog(argv._[0], argv.devId);
 fs.writeFile(`event-seq-${argv.devId}.json`, JSON.stringify(events, null, 2),
     err => {});
 var { dataMsg, orphanPost } = amendRecvTimeForDataMsg(events);
-console.log(`Total ${dataMsg.length} data-msg;`
-    + ` ${orphanPost.length} orpan post received by not processed`);
 dataMsg = calcDelays(dataMsg);
 fs.writeFile(`data-msg-${argv.devId}.json`, JSON.stringify(dataMsg, null, 2),
     err => {});
 writeTimingCsv(dataMsg, `data-timing-${argv.devId}.csv`);
-summary(dataMsg, orphanPost, `summary-${argv.devId}.txt`);

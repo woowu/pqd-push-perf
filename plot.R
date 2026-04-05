@@ -2,67 +2,119 @@
 library(dplyr)
 library(ggplot2)
 library(forcats)
+library(patchwork)
 
 args <- unlist(commandArgs(trailingOnly=TRUE))
+timezone <- args[2]
 timing_data <- read.csv(args[1])
 dev_id <- timing_data$DevId[1]
 plot_cap <- paste(c('Device: ', dev_id), collapse='')
 
-plot_seqno <- function(d) {
-    dd <- d;
+remove_duplicated <- function(d)
+{
+    d %>% arrange(RecvTime) %>% distinct(Seqno, .keep_all=TRUE)
+}
 
-    p <- ggplot(dd, aes(x=as.POSIXct(as.numeric(RecvTime/1000
-                                                , origin='1970-01-01'
-                                                , tz='GMT')), 
-                        y=Seqno)) +
-        geom_line() +
-        labs(x='Time', y='Seqno',
-            title='Seqno received vs time',
-            caption=plot_cap)
-    ggsave(paste(c('data-seqno-', dev_id, '.png'), collapse=''), p);
+plot_counts_bar <- function(ttl, repeated, ooo) {
+    d <- data.frame(
+            name=c('Total', 'Duplicated', 'Out-of-order'),
+            value=c(ttl, repeated, ooo)
+            )
+    d$name <- factor(d$name, levels=c('Total', 'Duplicated', 'Out-of-order'))
+    ggplot(d, aes(x=name, y=value)) +
+        geom_bar(stat='identity') +
+        geom_text(aes(label=value), vjust=-.1) +
+        ylim(0, ttl*1.2) +
+        labs(x='', y='', title='Received data points')
+}
 
-    dd$DiffSeqno <- c(0, diff(d$Seqno))
-    dd <- dd %>% tail(nrow(dd) - 1)
-    p <- ggplot(dd, aes(x=as.numeric(row.names(dd)) + 1, 
-                        y=DiffSeqno)) +
-        geom_line() +
-        labs(x='', y='Seqno',
-            title='Derivateive of Seqno of consecutively received data',
-            caption=plot_cap)
-    ggsave(paste(c('data-seqno-der-', dev_id, '.png'), collapse=''), p);
+plot_seqno_vs_time <- function(d) {
+    ggplot(d, aes(x=as.POSIXct(as.numeric(RecvTime/1000)
+                        , tz=timezone), 
+                        y=Seqno - min(Seqno))) +
+        geom_point(shape=43) +
+        labs(x='Time', y='Latest seqno',
+            title='Data receiving')
+}
+
+plot_seqno_der <- function(d) {
+    d$DiffSeqno <- c(diff(d$Seqno), 0)
+    d$DiffTime <- c(diff(d$RecvTime), 0)
+    d <- d %>% head(nrow(d) - 1)
+    p <- ggplot(d, aes(x=as.POSIXct(as.numeric(RecvTime/1000)
+                            , tz=timezone), 
+                        y=DiffSeqno*1000/DiffTime)) +
+        geom_point(shape=43) +
+        labs(x='Time', y='Δseqno/second', title='Seqno change rate',
+            subtitle='Sender (idea) rate: 1 seqno/second')
+}
+
+plot_travel_delay <- function(d) {
+    ggplot(d, aes(x=as.POSIXct(as.numeric(RecvTime/1000)
+                        , tz=timezone)
+                    , y=TravelDelay/1000)) +
+        geom_point(shape=43) +
+        labs(x='Time', y='Seconds',
+            title='Travel delay',
+            subtitle='Receiver clock minus meter clock')
 }
 
 plot_proc_delay <- function(d) {
-    p <- ggplot(d, aes(x=as.numeric(row.names(d)), 
+    ggplot(d, aes(x=as.POSIXct(as.numeric(RecvTime/1000)
+                        , tz=timezone), 
                         y=ProcDelay/1000)) +
-        geom_line() +
-        labs(x='', y='Seconds',
-            title='Receiver process delay',
-            caption=plot_cap)
-    ggsave(paste(c('proc-delay-', dev_id, '.png'), collapse=''), p);
+        geom_point(shape=43) +
+        labs(x='Time', y='Seconds',
+            title='Process delay',
+            subtitle='Decryption + other server overhead')
 }
 
-plot_comm_delay <- function(d) {
-    p <- ggplot(d, aes(x=as.numeric(row.names(d)), 
-                        y=CommDelay/1000)) +
-        geom_line() +
-        labs(x='', y='Seconds',
-            title='Communication delay',
-            caption=plot_cap)
-    ggsave(paste(c('comm-delay-', dev_id, '.png'), collapse=''), p);
+# Duplications should have been removed from d
+#
+plot_period_histo <- function(d) {
+    period <- diff(d$RecvTime)
+    d <- d %>% tail(nrow(d) - 1)
+    d$Period <- period/1000
+    ggplot(d, aes(x=Period)) +
+           geom_histogram(binwidth=1) +
+           labs(x='Second',
+                y='Nr. of data points',
+                title='Data period')
 }
 
-plot_comm_delay_norm <- function(d) {
-    p <- ggplot(d, aes(x=as.numeric(row.names(d)), 
-                        y=(CommDelay - min(CommDelay))/1000)) +
-        geom_line() +
-        labs(x='', y='Seconds',
-            title='Communication delay normalized',
-            caption=plot_cap)
-    ggsave(paste(c('comm-delay-norm-', dev_id, '.png'), collapse=''), p);
+plot_travel_delay_histo <- function(d) {
+    ggplot(d, aes(x=TravelDelay/1000)) +
+           geom_histogram(binwidth=.5) +
+           labs(x='Second',
+                y='Nr. of data points',
+                title='Travel delay')
 }
 
-plot_seqno(timing_data);
-plot_proc_delay(timing_data);
-plot_comm_delay(timing_data);
-plot_comm_delay_norm(timing_data);
+plot_proc_delay_histo <- function(d) {
+    ggplot(d, aes(x=ProcDelay/1000)) +
+           geom_histogram(binwidth=.05) +
+           labs(x='Second',
+                y='Nr. of data points',
+                title='Process delay')
+}
+
+distinct <- remove_duplicated(timing_data)
+repeats_count <- nrow(timing_data) - nrow(distinct)
+ooo_count <- sum(diff(distinct$Seqno) < 0)
+
+p_counts_bar <- plot_counts_bar(nrow(timing_data), repeats_count, ooo_count)
+p_seqno_vs_time <- plot_seqno_vs_time(timing_data)
+p_seqno_der <- plot_seqno_der(timing_data)
+p_travel_delay <- plot_travel_delay(timing_data)
+p_proc_delay <- plot_proc_delay(timing_data)
+p_period_histo <- plot_period_histo(distinct)
+p_travel_delay_histo <- plot_travel_delay_histo(distinct)
+p_proc_delay_histo <- plot_proc_delay_histo(distinct)
+
+p <- (p_counts_bar + p_proc_delay + p_proc_delay_histo) /
+    (p_period_histo + p_travel_delay + p_travel_delay_histo) /
+    (p_seqno_vs_time + p_seqno_der) +
+    plot_annotation(title = 'PQD Push Observed On Receiver Side',
+        subtitle = paste(c('Device: ', dev_id, '\n'), collapse=''))
+ggsave(paste(c('pqd-perf-', dev_id, '.png'), collapse='')
+       , p, width=10.5, height=7)
