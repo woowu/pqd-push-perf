@@ -2,6 +2,16 @@
 
 ## Install
 
+Prerequisites:
+
+- nodejs
+- R, and below R libraries:
+    - dplyr
+    - ggplot2
+    - patchwork
+
+Install nodejs dependencies:
+
 ```
 $ npm i
 ```
