@@ -202,7 +202,7 @@ async function scanAppMgrLog(filename, devId)
     var lineNoBegin;
     var partial = [];
     var events = [];
-    var reqId = -1;
+    var reqId = null;
 
     for await (const line of rl) {
         ++lineNo;
@@ -210,7 +210,7 @@ async function scanAppMgrLog(filename, devId)
             if (partial.length) {
                 const parts = partial[0].split(/ - /);
                 const timestamp = moment(parts[0] + ' ' + '+0000'
-                    , 'YYYY-MM-DD hh:mm:ss,SSS ZZ', true);
+                    , 'YYYY-MM-DD HH:mm:ss,SSS ZZ', true);
                 const e = detectEvent({
                     lineNo: lineNoBegin,
                     timestamp,
@@ -218,14 +218,13 @@ async function scanAppMgrLog(filename, devId)
                 }, devId);
                 if (e) {
                     //console.log(e);
-                    if (e.type == '_procDataMsgAsync') {
+                    if (e.type == '_procDataMsgAsync')
                         reqId = e.reqId;
-                    } else if (e.type == 'data-msg') {
-                        events.push({...e, reqId});
+                    else if (e.type == 'data-msg') {
+                        events.push({...e, reqId });
                         reqId = null;
-                    } else {
+                    } else
                         events.push({...e});
-                    }
                 }
             }
             partial = [line];
@@ -255,7 +254,6 @@ function amendRecvTimeForDataMsg(events)
     const proc = [];
     const amended = [];
     var post = [];
-    var orphanDataMsg = [];
 
     for (const e of events) {
         if (e.type == 'databot-post') {
@@ -273,25 +271,17 @@ function amendRecvTimeForDataMsg(events)
                 post_right.unshift(p);
                 p = post.pop();
             }
-            if (p == undefined) {
-                orphanDataMsg.push(e);
-                amended.push({ ...e, recvTime: e.timestamp });
-            }
+            if (p == undefined)
+                console.warn(`post not found for data-msg at line`
+                    + ` ${e.lineNo} using message id ${e.reqId}`)
             post = [...post, ...post_right];
-        }
-    }
-    if (orphanDataMsg.length) {
-        console.warn(`Found ${post.length} orphan data-msg w/o data-post:`);
-        for (const p of orphanDataMsg) {
-            console.warng(JSON.stringyfy(p, null, 2));
         }
     }
     if (post.length) {
         console.warn(`Found ${post.length} orphan data-post`
             + ` not been processed:`);
-        for (const p of post) {
-            console.warng(JSON.stringyfy(p, null, 2));
-        }
+        for (const p of post)
+            console.warn(` line ${p.lineNo}`);
     }
     return { dataMsg: amended, orphanPost: post };
 }
@@ -340,7 +330,7 @@ const argv = yargs(hideBin(process.argv))
     })
     .alias('h', 'help')
     .alias('v', 'version')
-    .version('0.2.0')
+    .version('0.2.1')
     .parse();
 
 DataMsgType = await loadDataMsgType();

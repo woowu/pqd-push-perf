@@ -46,7 +46,7 @@ plot_seqno_der <- function(d) {
                         y=DiffSeqno*1000/DiffTime)) +
         geom_point(shape=43) +
         labs(x='Time', y='Δseqno/second', title='Seqno change rate',
-            subtitle='Sender (idea) rate: 1 seqno/second')
+            subtitle='Sender (idea) rate: +1 seqno/second')
 }
 
 plot_travel_delay <- function(d) {
